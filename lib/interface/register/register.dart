@@ -1,7 +1,22 @@
 import 'package:flutter/material.dart';
+// 1. IMPORTE O PACOTE DA MÁSCARA
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
-class RegisterScreen extends StatelessWidget {
+// 2. CONVERTA PARA STATEFULWIDGET
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  // 3. CRIE A INSTÂNCIA DO FORMATADOR DA MÁSCARA
+  final _cpfMaskFormatter = MaskTextInputFormatter(
+    mask: '###.###.###-##', // Define o formato do CPF
+    filter: {"#": RegExp(r'[0-9]')}, // Permite apenas números
+    type: MaskAutoCompletionType.lazy,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +42,6 @@ class RegisterScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 40),
 
-                // Campo de texto para o Nome
                 TextField(
                   keyboardType: TextInputType.name,
                   decoration: InputDecoration(
@@ -40,7 +54,21 @@ class RegisterScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Campo de texto para o Email
+                // 4. ADICIONE O CAMPO DE CPF AQUI
+                TextField(
+                  keyboardType: TextInputType.number,
+                  // Aplica o formatador ao campo de texto
+                  inputFormatters: [_cpfMaskFormatter],
+                  decoration: InputDecoration(
+                    labelText: 'CPF',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: const Icon(Icons.badge_outlined),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 TextField(
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
@@ -53,7 +81,6 @@ class RegisterScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Campo de texto para a Senha
                 TextField(
                   obscureText: true,
                   decoration: InputDecoration(
@@ -66,7 +93,6 @@ class RegisterScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Campo de texto para confirmar a senha
                 TextField(
                   obscureText: true,
                   decoration: InputDecoration(
@@ -79,7 +105,6 @@ class RegisterScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Botão de Cadastrar
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -99,10 +124,8 @@ class RegisterScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
 
-                // Botão para voltar ao login
                 TextButton(
                   onPressed: () {
-                    // Ação para voltar para a tela de login
                     Navigator.pop(context);
                   },
                   child: const Text('Já tem uma conta? Faça login'),
