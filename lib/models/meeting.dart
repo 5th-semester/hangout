@@ -2,12 +2,12 @@ import 'local.dart';
 import 'user.dart';
 
 class Meeting {
-  int meeting_id;
-  String name;
-  String description;
-  Local local;
-  List<User> users;
-  DateTime datetime;
+  final int meeting_id;
+  final String name;
+  final String description;
+  final Local local;
+  final List<User> users;
+  final DateTime datetime;
 
   Meeting({
     required this.meeting_id,
