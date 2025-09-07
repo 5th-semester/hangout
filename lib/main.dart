@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'pages/login.dart'; // 1. Importe a sua tela de login
 import 'package:hangout/pages/home_page.dart';
-import 'package:hangout/widgets/main_page.dart';
+import 'package:hangout/pages/main_page.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('pt_BR', null);
   runApp(const MyApp());
 }
 
@@ -14,12 +17,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Login App',
-      debugShowCheckedModeBanner: false, // Remove a faixa de "Debug"
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const LoginScreen(), // 2. Chame a LoginScreen aqui
+      home: const MainPage(),
     );
   }
 }

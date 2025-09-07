@@ -129,7 +129,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Navigator.pop(context);
                   },
                   child: const Text('Já tem uma conta? Faça login'),
-                )
+                ),
               ],
             ),
           ),

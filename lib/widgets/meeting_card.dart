@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // NOVO: Importação para formatar a data
 import '../models/meeting.dart';
 
 class MeetingCard extends StatelessWidget {
@@ -49,13 +50,35 @@ class MeetingCard extends StatelessWidget {
             context,
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8), // Aumentei um pouco o espaço
         Row(
           children: [
-            Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+            Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
             const SizedBox(width: 4),
             Text(
               meeting.local.name,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        // NOVO: Widget para exibir a data e a hora
+        Row(
+          children: [
+            Icon(
+              Icons.calendar_month_outlined,
+              size: 16,
+              color: Colors.grey[600],
+            ),
+            const SizedBox(width: 4),
+            Text(
+              // Usamos DateFormat para um visual limpo e localizado
+              DateFormat(
+                "E, dd/MMM 'às' HH:mm",
+                'pt_BR',
+              ).format(meeting.datetime),
               style: Theme.of(
                 context,
               ).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
@@ -67,6 +90,7 @@ class MeetingCard extends StatelessWidget {
   }
 
   Widget _buildDescription() {
+    // ... sem alterações aqui
     return Text(
       meeting.description,
       maxLines: 2,
@@ -76,6 +100,7 @@ class MeetingCard extends StatelessWidget {
   }
 
   Widget _buildFooter(BuildContext context) {
+    // ... sem alterações aqui
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [_buildParticipantCountChip(context), _buildActionButtons()],
@@ -83,10 +108,11 @@ class MeetingCard extends StatelessWidget {
   }
 
   Widget _buildParticipantCountChip(BuildContext context) {
+    // ... sem alterações aqui
     final isFull = meeting.users.length >= 5;
     return Chip(
       avatar: Icon(
-        Icons.people,
+        Icons.people_outline,
         size: 18,
         color: isFull ? Colors.red : Theme.of(context).primaryColor,
       ),
@@ -100,6 +126,7 @@ class MeetingCard extends StatelessWidget {
   }
 
   Widget _buildActionButtons() {
+    // ... sem alterações aqui
     final isFull = meeting.users.length >= 5;
 
     return Row(
