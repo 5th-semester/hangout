@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'pages/login.dart'; // 1. Importe a sua tela de login
-import 'package:hangout/pages/home_page.dart';
-import 'package:hangout/widgets/main_page.dart';
+// import 'package:hangout/pages/home_page.dart';
+// import 'package:hangout/widgets/main_page.dart';
 
 void main() {
   runApp(const MyApp());
