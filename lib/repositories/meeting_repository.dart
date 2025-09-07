@@ -4,7 +4,6 @@ import './mocks/meeting_mocks.dart';
 import '../models/coordinates.dart';
 import '../models/meeting.dart';
 
-// Classe auxiliar privada para associar um Meeting à sua distância calculada
 class _MeetingWithDistance {
   final Meeting meeting;
   final double distanceInKm;

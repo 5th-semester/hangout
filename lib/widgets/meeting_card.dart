@@ -106,10 +106,9 @@ class MeetingCard extends StatelessWidget {
       children: [
         TextButton(onPressed: onSeeMorePressed, child: const Text('Ver Mais')),
         const SizedBox(width: 8),
-
         ElevatedButton(
           onPressed: isFull ? null : onSubscribePressed,
-          child: const Text('Inscrever-se'),
+          child: const Text('Participar'),
         ),
       ],
     );
