@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 // 1. IMPORTE A TELA DE REGISTRO
-import '../register/register.dart';
+import 'register.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
