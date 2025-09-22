@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'create_meeting_page.dart';
+import 'user_settings.dart';
 import 'home_page.dart';
+import 'user_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -15,7 +17,7 @@ class _MainPageState extends State<MainPage> {
   static const List<Widget> _pages = <Widget>[
     HomePage(),
     Center(child: Text('Meus Eventos')),
-    Center(child: Text('Perfil')),
+    UserPage(),
   ];
 
   void _onItemTapped(int index) {
@@ -31,18 +33,32 @@ class _MainPageState extends State<MainPage> {
   }
 
   Widget? _buildFloatingActionButton() {
-    if (_selectedIndex == 0) {
-      return FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const CreateMeetingPage()),
-          );
-        },
-        tooltip: 'Criar Evento',
-        child: const Icon(Icons.add),
-      );
+    switch (_selectedIndex) {
+      case 0: // start
+        return FloatingActionButton(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const CreateMeetingPage(),
+              ),
+            );
+          },
+          tooltip: 'Criar Evento',
+          child: const Icon(Icons.add),
+        );
+      case 2: // profile
+        return FloatingActionButton(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const UserSettings()),
+            );
+          },
+          tooltip: 'Minhas informações',
+          child: const Icon(Icons.settings),
+        );
+      default:
+        return null;
     }
-    return null;
   }
 
   @override
