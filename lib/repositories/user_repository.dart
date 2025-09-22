@@ -6,8 +6,9 @@ import 'dart:math';
 
 class UserRepository {
   User? _currentUser;
+  final List<User> _allUsers = UserMocks.list;
   User? get currentUser => _currentUser;
-  
+
   Future<User> login(String email, String password) async {
     await Future.delayed(const Duration(seconds: 1));
 
@@ -35,7 +36,12 @@ class UserRepository {
     }
   }
 
-  Future<User> createUser(String name, String email, String cpf, String password) async {
+  Future<User> createUser(
+    String name,
+    String email,
+    String cpf,
+    String password,
+  ) async {
     await Future.delayed(const Duration(seconds: 1));
 
     // Remove a máscara do CPF para salvar e comparar
@@ -65,18 +71,24 @@ class UserRepository {
 
     // Adiciona o novo usuário à lista mockada
     UserMocks.list.add(newUser);
-    print('✅ Usuário criado com sucesso: ${newUser.name} (ID: ${newUser.user_id})');
-    
+    print(
+      '✅ Usuário criado com sucesso: ${newUser.name} (ID: ${newUser.user_id})',
+    );
+
     // Opcional: Faz o login automático do novo usuário
     _currentUser = newUser;
 
     return newUser;
   }
 
-  getUser() {}
+  User getUser(int index) {
+    if (_allUsers.isEmpty) {
+      return User(user_id: 0, name: "0", email: "0", cpf: "0", password: "0");
+    }
+    return _allUsers[index];
+  }
 
   updateUser() {}
 
   deleteUser() {}
-
 }
