@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-import '../../repositories/user_repository.dart'; 
+import '../../repositories/user_repository.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -19,13 +19,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   // NOVO: Chave para o formulário para validações futuras
   final _formKey = GlobalKey<FormState>();
 
   final _cpfMaskFormatter = MaskTextInputFormatter(
-    mask: '###.###.###-##', 
-    filter: {"#": RegExp(r'[0-9]')}, 
+    mask: '###.###.###-##',
+    filter: {"#": RegExp(r'[0-9]')},
     type: MaskAutoCompletionType.lazy,
   );
 
@@ -47,7 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _showSnackBar('As senhas não coincidem.', isError: true);
       return;
     }
-    
+
     setState(() => _isLoading = true);
 
     try {
@@ -57,12 +57,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _cpfController.text,
         _passwordController.text,
       );
-      
+
       _showSnackBar('Usuário ${newUser.name} cadastrado com sucesso!');
-      
+
       // Volta para a tela anterior (login) após o sucesso
       if (mounted) Navigator.pop(context);
-
     } catch (e) {
       // Exibe o erro vindo do repositório (ex: "Email já em uso")
       _showSnackBar(e.toString().replaceAll('Exception: ', ''), isError: true);
@@ -162,7 +161,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // ALTERADO: Conectado o controller
                   TextField(
                     controller: _passwordController,
@@ -190,7 +189,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // ALTERADO: Lógica de cadastro e loading no botão
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
@@ -201,17 +200,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: _isLoading ? null : _register, // Desabilita o botão durante o loading
+                    onPressed: _isLoading
+                        ? null
+                        : _register, // Desabilita o botão durante o loading
                     child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text(
-                          'Cadastrar',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Cadastrar',
+                            style: TextStyle(fontSize: 16),
+                          ),
                   ),
                   const SizedBox(height: 12),
 
@@ -220,19 +224,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Navigator.pop(context);
                     },
                     child: const Text('Já tem uma conta? Faça login'),
-                  )
+                  ),
                 ],
               ),
-                ),
-                const SizedBox(height: 12),
-
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Já tem uma conta? Faça login'),
-                ),
-              ],
             ),
           ),
         ),

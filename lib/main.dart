@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hangout/pages/register.dart';
 import 'pages/login.dart'; // 1. Importe a sua tela de login
 
 import 'package:hangout/pages/home_page.dart';
@@ -23,7 +24,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MainPage(),
+      home: const RegisterScreen(),
     );
   }
 }
