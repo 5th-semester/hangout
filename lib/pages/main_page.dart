@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../pages/create_meeting_page.dart';
-import '../pages/home_page.dart';
+import 'create_meeting_page.dart';
+import 'home_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -30,16 +30,27 @@ class _MainPageState extends State<MainPage> {
     ).push(MaterialPageRoute(builder: (context) => const CreateMeetingPage()));
   }
 
+  Widget? _buildFloatingActionButton() {
+    if (_selectedIndex == 0) {
+      return FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => const CreateMeetingPage()),
+          );
+        },
+        tooltip: 'Criar Evento',
+        child: const Icon(Icons.add),
+      );
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages.elementAt(_selectedIndex),
 
-      floatingActionButton: FloatingActionButton(
-        onPressed: _navigateToCreateMeeting,
-        tooltip: 'Criar Evento',
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: _buildFloatingActionButton(),
 
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[

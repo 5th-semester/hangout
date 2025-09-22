@@ -223,6 +223,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   )
                 ],
               ),
+                ),
+                const SizedBox(height: 12),
+
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Já tem uma conta? Faça login'),
+                ),
+              ],
             ),
           ),
         ),
