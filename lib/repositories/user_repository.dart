@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../../models/user.dart'; // Certifique-se que o caminho para o seu modelo User está correto
+import '../../models/user.dart';
 import './mocks/user_mocks.dart';
 import 'dart:math';
 

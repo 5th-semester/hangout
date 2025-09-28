@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hangout/pages/login.dart';
 import 'package:provider/provider.dart';
 import 'package:hangout/repositories/user_repository.dart';
-
+import 'package:hangout/repositories/meeting_repository.dart';
 import 'package:hangout/pages/main_page.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -11,8 +11,13 @@ Future<void> main() async {
   await initializeDateFormatting('pt_BR', null);
 
   runApp(
-    Provider<UserRepository>(
-      create: (_) => UserRepository(),
+    MultiProvider(
+      providers: [
+        Provider<UserRepository>(create: (_) => UserRepository()),
+        ChangeNotifierProvider<MeetingRepository>(
+          create: (_) => MeetingRepository(),
+        ),
+      ],
       child: const MyApp(),
     ),
   );
