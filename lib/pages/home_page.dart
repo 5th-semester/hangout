@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:hangout/repositories/user_repository.dart';
 import '../widgets/meeting_card.dart';
 import '../repositories/meeting_repository.dart';
 import '../models/meeting.dart';
 import '../models/coordinates.dart';
+import '../models/user.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,9 +21,54 @@ class _HomePageState extends State<HomePage> {
     await Future.delayed(const Duration(seconds: 1));
   }
 
+  // **NOVA FUNÇÃO PARA LIDAR COM A INSCRIÇÃO**
+  // Movemos a lógica para uma função separada para manter o build limpo.
+  void _handleSubscription(Meeting meeting) {
+    // Adicionada verificação para ver se o evento está lotado
+    if (meeting.users.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Este evento já atingiu o número máximo de participantes.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return; // Interrompe a execução se o evento estiver lotado
+    }
+
+    // Usamos context.read aqui porque estamos dentro de uma função de callback,
+    // não precisamos que o widget reconstrua se o usuário mudar.
+    final userRepository = context.read<UserRepository>();
+    final meetingRepository = context.read<MeetingRepository>();
+    final User? currentUser = userRepository.currentUser;
+
+    if (currentUser != null) {
+      meetingRepository.subscribeToMeeting(meeting: meeting, user: currentUser);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Inscrição em "${meeting.name}" realizada com sucesso!',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      // Caso de segurança: se não houver usuário logado
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Você precisa estar logado para se inscrever.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final meetingRepository = context.watch<MeetingRepository>();
+    // Também pegamos o usuário aqui para passar para o método 'isUserSubscribed'
+    final currentUser = context.watch<UserRepository>().currentUser;
 
     final meetings = meetingRepository.getPaginatedMeetingsByProximity(
       userCoordinates: _userLocation,
@@ -35,51 +82,51 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: () {
-              /* TODO: Implementar lógica de filtro */
+              /* TODO */
             },
           ),
         ],
       ),
-
       body: RefreshIndicator(
         onRefresh: _refreshMeetings,
         child: meetings.isEmpty
             ? _buildEmptyState()
-            : _buildMeetingsList(meetings),
+            : _buildMeetingsList(meetings, meetingRepository, currentUser),
       ),
     );
   }
 
-  Widget _buildMeetingsList(List<Meeting> meetings) {
+  Widget _buildMeetingsList(
+    List<Meeting> meetings,
+    MeetingRepository repository,
+    User? currentUser,
+  ) {
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       itemCount: meetings.length,
       itemBuilder: (context, index) {
         final meeting = meetings[index];
+        // Verifica se o usuário atual já está inscrito neste evento
+        final bool isSubscribed = repository.isUserSubscribed(
+          meeting: meeting,
+          user: currentUser,
+        );
+
         return MeetingCard(
           meeting: meeting,
+          isSubscribed: isSubscribed, // Passa o status da inscrição para o Card
           onSeeMorePressed: () {
-            // TODO: Implementar navegação para a página de detalhes do evento
             print('Navegando para detalhes do evento: ${meeting.name}');
           },
-          onSubscribePressed: () {
-            // TODO: Implementar a lógica de inscrição real usando o repositório
-            print('Inscrição no evento: ${meeting.name}');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Inscrição em "${meeting.name}" realizada com sucesso!',
-                ),
-                backgroundColor: Colors.green,
-              ),
-            );
-          },
+          // A função de inscrição agora chama nosso método handler
+          onSubscribePressed: () => _handleSubscription(meeting),
         );
       },
     );
   }
 
   Widget _buildEmptyState() {
+    // ... (seu código de estado vazio não precisa de alteração)
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(

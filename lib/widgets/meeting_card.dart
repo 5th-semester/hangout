@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // NOVO: Importação para formatar a data
+import 'package:intl/intl.dart';
 import '../models/meeting.dart';
 
 class MeetingCard extends StatelessWidget {
   final Meeting meeting;
+  final bool isSubscribed; // 1. NOVO PARÂMETRO ADICIONADO
   final VoidCallback onSubscribePressed;
   final VoidCallback onSeeMorePressed;
 
   const MeetingCard({
     super.key,
     required this.meeting,
+    required this.isSubscribed, // 2. TORNA O PARÂMETRO OBRIGATÓRIO
     required this.onSubscribePressed,
     required this.onSeeMorePressed,
   });
@@ -50,7 +52,7 @@ class MeetingCard extends StatelessWidget {
             context,
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 8), // Aumentei um pouco o espaço
+        const SizedBox(height: 8),
         Row(
           children: [
             Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
@@ -64,7 +66,6 @@ class MeetingCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 4),
-        // NOVO: Widget para exibir a data e a hora
         Row(
           children: [
             Icon(
@@ -74,7 +75,6 @@ class MeetingCard extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              // Usamos DateFormat para um visual limpo e localizado
               DateFormat(
                 "E, dd/MMM 'às' HH:mm",
                 'pt_BR',
@@ -90,7 +90,6 @@ class MeetingCard extends StatelessWidget {
   }
 
   Widget _buildDescription() {
-    // ... sem alterações aqui
     return Text(
       meeting.description,
       maxLines: 2,
@@ -100,7 +99,6 @@ class MeetingCard extends StatelessWidget {
   }
 
   Widget _buildFooter(BuildContext context) {
-    // ... sem alterações aqui
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [_buildParticipantCountChip(context), _buildActionButtons()],
@@ -108,7 +106,6 @@ class MeetingCard extends StatelessWidget {
   }
 
   Widget _buildParticipantCountChip(BuildContext context) {
-    // ... sem alterações aqui
     final isFull = meeting.users.length >= 5;
     return Chip(
       avatar: Icon(
@@ -125,18 +122,40 @@ class MeetingCard extends StatelessWidget {
     );
   }
 
+  // 3. MÉTODO ATUALIZADO PARA USAR O NOVO PARÂMETRO
   Widget _buildActionButtons() {
-    // ... sem alterações aqui
     final isFull = meeting.users.length >= 5;
+
+    // Define qual botão de ação será exibido
+    Widget actionButton;
+
+    if (isSubscribed) {
+      actionButton = OutlinedButton.icon(
+        onPressed: null, // Botão desabilitado
+        icon: const Icon(Icons.check_circle_outline, size: 18),
+        label: const Text('Inscrito'),
+        style: OutlinedButton.styleFrom(
+          disabledForegroundColor: Colors.green.withOpacity(0.8),
+        ),
+      );
+    } else if (isFull) {
+      actionButton = ElevatedButton(
+        onPressed: null, // Botão desabilitado
+        style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+        child: const Text('Lotado'),
+      );
+    } else {
+      actionButton = ElevatedButton(
+        onPressed: onSubscribePressed,
+        child: const Text('Participar'),
+      );
+    }
 
     return Row(
       children: [
         TextButton(onPressed: onSeeMorePressed, child: const Text('Ver Mais')),
         const SizedBox(width: 8),
-        ElevatedButton(
-          onPressed: isFull ? null : onSubscribePressed,
-          child: const Text('Participar'),
-        ),
+        actionButton, // Usa o widget de botão definido acima
       ],
     );
   }
