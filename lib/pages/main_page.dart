@@ -3,6 +3,7 @@ import 'create_meeting_page.dart';
 import 'user_settings.dart';
 import 'home_page.dart';
 import 'user_page.dart';
+import 'my_events_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -16,7 +17,7 @@ class _MainPageState extends State<MainPage> {
 
   static const List<Widget> _pages = <Widget>[
     HomePage(),
-    Center(child: Text('Meus Eventos')),
+    MyEventsPage(),
     UserPage(),
   ];
 
