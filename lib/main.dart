@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:hangout/pages/register.dart';
-import 'pages/login.dart'; // 1. Importe a sua tela de login
+import 'package:hangout/pages/login.dart';
+import 'package:provider/provider.dart';
+import 'package:hangout/repositories/user_repository.dart';
 
-import 'package:hangout/pages/home_page.dart';
 import 'package:hangout/pages/main_page.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('pt_BR', null);
-  runApp(const MyApp());
+
+  runApp(
+    Provider<UserRepository>(
+      create: (_) => UserRepository(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -24,7 +30,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MainPage(),
+      home: const LoginScreen(),
     );
   }
 }
