@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hangout/pages/main_page.dart';
 
 // IMPORTE SUAS DEPENDÊNCIAS
 import 'home_page.dart';
@@ -37,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => HomePage()),
+          MaterialPageRoute(builder: (context) => MainPage()),
         );
       }
     } catch (e) {
@@ -134,10 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             strokeWidth: 3,
                           ),
                         )
-                      : const Text(
-                          'Entrar',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                      : const Text('Entrar', style: TextStyle(fontSize: 16)),
                 ),
                 const SizedBox(height: 12),
                 TextButton(
@@ -145,11 +143,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const RegisterScreen()),
+                        builder: (context) => const RegisterScreen(),
+                      ),
                     );
                   },
                   child: const Text('Não tem uma conta? Cadastre-se'),
-                )
+                ),
               ],
             ),
           ),
