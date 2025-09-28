@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // Importe o pacote de formatação
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:hangout/repositories/user_repository.dart';
+import 'package:hangout/repositories/meeting_repository.dart';
 import '../models/local.dart';
 import '../pickers/location_picker.dart';
+import '../models/user.dart';
 import '../pickers/date_time_picker.dart';
 import '../widgets/custom_picker_tile.dart';
 
@@ -20,6 +24,7 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
 
   Local? _selectedLocal;
   DateTime? _selectedDateTime;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -53,40 +58,73 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     }
   }
 
-  void _submitForm() {
-    final isFormValid = _formKey.currentState?.validate() ?? false;
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ),
+    );
+  }
 
+  bool _validateInputs() {
     if (_selectedLocal == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, selecione um local.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+      _showErrorSnackBar('Por favor, selecione um local.');
+      return false;
     }
     if (_selectedDateTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, selecione data e hora.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showErrorSnackBar('Por favor, selecione data e hora.');
+      return false;
+    }
+
+    final isFormValid = _formKey.currentState?.validate() ?? false;
+    if (!isFormValid) {
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _submitForm() async {
+    if (!_validateInputs()) return;
+
+    final currentUser = context.read<UserRepository>().currentUser;
+    if (currentUser == null) {
+      _showErrorSnackBar('Erro: Nenhum usuário logado. Faça login novamente.');
       return;
     }
 
-    if (isFormValid) {
-      // TODO: Aqui você pegaria todos os dados e enviaria para o repositório
-      print('Nome: ${_nameController.text}');
-      print('Descrição: ${_descriptionController.text}');
-      print('Local: ${_selectedLocal!.name}');
-      print('Data/Hora: ${_selectedDateTime!}');
+    setState(() => _isLoading = true);
 
+    try {
+      await _createMeeting(currentUser);
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Evento criado com sucesso!')),
+        const SnackBar(
+          content: Text('Evento criado com sucesso!'),
+          backgroundColor: Colors.green,
+        ),
       );
       Navigator.of(context).pop();
+    } catch (e) {
+      _showErrorSnackBar('Ocorreu um erro ao criar o evento: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
+  }
+
+  Future<void> _createMeeting(User currentUser) {
+    final meetingRepository = context.read<MeetingRepository>();
+    return meetingRepository.createMeeting(
+      name: _nameController.text,
+      description: _descriptionController.text,
+      datetime: _selectedDateTime!,
+      local: _selectedLocal!,
+      creatorUser: currentUser,
+    );
   }
 
   @override

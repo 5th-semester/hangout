@@ -1,8 +1,10 @@
 import 'dart:math';
-
+import 'package:flutter/foundation.dart';
 import './mocks/meeting_mocks.dart';
 import '../models/coordinates.dart';
 import '../models/meeting.dart';
+import '../models/user.dart';
+import '../models/local.dart';
 
 class _MeetingWithDistance {
   final Meeting meeting;
@@ -11,8 +13,34 @@ class _MeetingWithDistance {
   _MeetingWithDistance({required this.meeting, required this.distanceInKm});
 }
 
-class MeetingRepository {
-  final List<Meeting> _allMeetings = MeetingMocks.list;
+class MeetingRepository with ChangeNotifier {
+  final List<Meeting> _allMeetings = List.from(MeetingMocks.list);
+
+  Future<Meeting> createMeeting({
+    required String name,
+    required String description,
+    required DateTime datetime,
+    required Local local,
+    required User creatorUser,
+  }) async {
+    await Future.delayed(const Duration(seconds: 1));
+
+    final newId = _allMeetings.map((m) => m.meeting_id).reduce(max) + 1;
+
+    final newMeeting = Meeting(
+      meeting_id: newId,
+      name: name,
+      description: description,
+      datetime: datetime,
+      local: local,
+      users: [creatorUser],
+    );
+
+    _allMeetings.add(newMeeting);
+    print('✅ Encontro "${newMeeting.name}" criado com sucesso!');
+    notifyListeners();
+    return newMeeting;
+  }
 
   List<Meeting> getPaginatedMeetingsByProximity({
     required Coordinates userCoordinates,

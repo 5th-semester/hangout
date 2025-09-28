@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hangout/pages/main_page.dart';
-
-// IMPORTE SUAS DEPENDÊNCIAS
+import 'package:provider/provider.dart';
 import 'home_page.dart';
 import 'register.dart';
-//import '../models/user.dart'; // Supondo que o user.dart está em 'models'
-import '../repositories/user_repository.dart'; // Importe seu repositório
+import '../repositories/user_repository.dart';
 
 // 1. CONVERTA PARA STATEFULWIDGET
 class LoginScreen extends StatefulWidget {
@@ -19,7 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
   // 2. CRIE CONTROLLERS E VARIÁVEIS DE ESTADO
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _userRepository = UserRepository();
   bool _isLoading = false;
 
   // Função para lidar com o clique no botão de login
@@ -27,6 +24,8 @@ class _LoginScreenState extends State<LoginScreen> {
     // Pega os valores dos campos de texto
     final email = _emailController.text;
     final password = _passwordController.text;
+
+    final _userRepository = Provider.of<UserRepository>(context, listen: false);
 
     // Inicia o estado de carregamento
     setState(() {
