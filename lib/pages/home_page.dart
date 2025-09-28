@@ -21,10 +21,7 @@ class _HomePageState extends State<HomePage> {
     await Future.delayed(const Duration(seconds: 1));
   }
 
-  // **NOVA FUNÇÃO PARA LIDAR COM A INSCRIÇÃO**
-  // Movemos a lógica para uma função separada para manter o build limpo.
   void _handleSubscription(Meeting meeting) {
-    // Adicionada verificação para ver se o evento está lotado
     if (meeting.users.length >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -34,11 +31,9 @@ class _HomePageState extends State<HomePage> {
           backgroundColor: Colors.orange,
         ),
       );
-      return; // Interrompe a execução se o evento estiver lotado
+      return;
     }
 
-    // Usamos context.read aqui porque estamos dentro de uma função de callback,
-    // não precisamos que o widget reconstrua se o usuário mudar.
     final userRepository = context.read<UserRepository>();
     final meetingRepository = context.read<MeetingRepository>();
     final User? currentUser = userRepository.currentUser;
@@ -54,7 +49,6 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     } else {
-      // Caso de segurança: se não houver usuário logado
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Você precisa estar logado para se inscrever.'),
@@ -67,7 +61,6 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final meetingRepository = context.watch<MeetingRepository>();
-    // Também pegamos o usuário aqui para passar para o método 'isUserSubscribed'
     final currentUser = context.watch<UserRepository>().currentUser;
 
     final meetings = meetingRepository.getPaginatedMeetingsByProximity(
@@ -106,7 +99,6 @@ class _HomePageState extends State<HomePage> {
       itemCount: meetings.length,
       itemBuilder: (context, index) {
         final meeting = meetings[index];
-        // Verifica se o usuário atual já está inscrito neste evento
         final bool isSubscribed = repository.isUserSubscribed(
           meeting: meeting,
           user: currentUser,
@@ -114,11 +106,10 @@ class _HomePageState extends State<HomePage> {
 
         return MeetingCard(
           meeting: meeting,
-          isSubscribed: isSubscribed, // Passa o status da inscrição para o Card
+          isSubscribed: isSubscribed,
           onSeeMorePressed: () {
             print('Navegando para detalhes do evento: ${meeting.name}');
           },
-          // A função de inscrição agora chama nosso método handler
           onSubscribePressed: () => _handleSubscription(meeting),
         );
       },
@@ -126,7 +117,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildEmptyState() {
-    // ... (seu código de estado vazio não precisa de alteração)
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
