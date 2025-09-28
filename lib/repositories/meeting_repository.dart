@@ -16,37 +16,14 @@ class _MeetingWithDistance {
 class MeetingRepository with ChangeNotifier {
   final List<Meeting> _allMeetings = List.from(MeetingMocks.list);
 
-  Future<Meeting> createMeeting({
-    required String name,
-    required String description,
-    required DateTime datetime,
-    required Local local,
-    required User creatorUser,
-  }) async {
-    await Future.delayed(const Duration(seconds: 1));
-
-    final newId = _allMeetings.map((m) => m.meeting_id).reduce(max) + 1;
-
-    final newMeeting = Meeting(
-      meeting_id: newId,
-      name: name,
-      description: description,
-      datetime: datetime,
-      local: local,
-      users: [creatorUser],
-    );
-
-    _allMeetings.add(newMeeting);
-    print('✅ Encontro "${newMeeting.name}" criado com sucesso!');
-    notifyListeners();
-    return newMeeting;
-  }
+  // --- MÉTODOS DE DADOS ---
 
   List<Meeting> getPaginatedMeetingsByProximity({
     required Coordinates userCoordinates,
     required int itemsPerPage,
     int? lastMeetingId,
   }) {
+    // ... (código existente sem alterações)
     final meetingsWithDistance = _allMeetings.map((meeting) {
       final distance = _calculateDistanceInKm(
         userCoordinates,
@@ -60,7 +37,6 @@ class MeetingRepository with ChangeNotifier {
     );
 
     int startIndex = 0;
-
     if (lastMeetingId != null) {
       final lastIndex = meetingsWithDistance.indexWhere(
         (m) => m.meeting.meeting_id == lastMeetingId,
@@ -79,20 +55,84 @@ class MeetingRepository with ChangeNotifier {
     return paginatedList;
   }
 
-  double _calculateDistanceInKm(Coordinates point1, Coordinates point2) {
-    const earthRadiusKm = 6371;
+  // --- MÉTODOS DE AÇÃO (Mutations) ---
 
+  Future<void> createMeeting({
+    required String name,
+    required String description,
+    required DateTime datetime,
+    required Local local,
+    required User creatorUser,
+  }) async {
+    // ... (código existente sem alterações)
+    await Future.delayed(const Duration(seconds: 1));
+    final newId = _allMeetings.isNotEmpty
+        ? _allMeetings.map((m) => m.meeting_id).reduce(max) + 1
+        : 1;
+    final newMeeting = Meeting(
+      meeting_id: newId,
+      name: name,
+      description: description,
+      datetime: datetime,
+      local: local,
+      users: [creatorUser],
+    );
+    _allMeetings.add(newMeeting);
+    print('✅ Encontro "${newMeeting.name}" criado com sucesso!');
+    notifyListeners();
+  }
+
+  /// **NOVO MÉTODO PARA INSCRIÇÃO**
+  /// Inscreve um usuário em um evento específico.
+  Future<void> subscribeToMeeting({
+    required Meeting meeting,
+    required User user,
+  }) async {
+    // Simula um delay de rede
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // Encontra o evento na nossa lista principal para garantir que estamos
+    // modificando o objeto correto.
+    final meetingToUpdate = _allMeetings.firstWhere(
+      (m) => m.meeting_id == meeting.meeting_id,
+    );
+
+    // Verifica se o usuário já não está inscrito
+    final isAlreadySubscribed = meetingToUpdate.users.any(
+      (u) => u.user_id == user.user_id,
+    );
+
+    if (!isAlreadySubscribed) {
+      meetingToUpdate.users.add(user);
+      print('✅ Usuário "${user.name}" inscrito em "${meeting.name}"');
+      // Notifica a UI que um evento foi alterado, para que ela se reconstrua.
+      notifyListeners();
+    } else {
+      print(
+        'ℹ️ Usuário "${user.name}" já estava inscrito em "${meeting.name}"',
+      );
+    }
+  }
+
+  // --- MÉTODOS AUXILIARES ---
+
+  /// Verifica se um usuário está inscrito em um determinado evento.
+  bool isUserSubscribed({required Meeting meeting, required User? user}) {
+    if (user == null) return false;
+    return meeting.users.any((u) => u.user_id == user.user_id);
+  }
+
+  double _calculateDistanceInKm(Coordinates point1, Coordinates point2) {
+    // ... (código existente sem alterações)
+    const earthRadiusKm = 6371;
     final dLat = _degreesToRadians(point2.latitude - point1.latitude);
     final dLon = _degreesToRadians(point2.longitude - point1.longitude);
-
     final lat1 = _degreesToRadians(point1.latitude);
     final lat2 = _degreesToRadians(point2.latitude);
-
     final a =
         sin(dLat / 2) * sin(dLat / 2) +
         sin(dLon / 2) * sin(dLon / 2) * cos(lat1) * cos(lat2);
     final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-
     return earthRadiusKm * c;
   }
 
