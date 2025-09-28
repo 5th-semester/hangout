@@ -5,6 +5,7 @@ import '../repositories/meeting_repository.dart';
 import '../models/meeting.dart';
 import '../models/user.dart';
 import '../widgets/meeting_card.dart';
+import 'meeting_details_page.dart';
 
 class MyEventsPage extends StatelessWidget {
   const MyEventsPage({super.key});
@@ -52,8 +53,11 @@ class MyEventsPage extends StatelessWidget {
           meeting: meeting,
           isSubscribed: true,
           onSeeMorePressed: () {
-            // TODO: Navegar para a tela de detalhes do evento.
-            print('Ver detalhes do evento: ${meeting.name}');
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => MeetingDetailsPage(meeting: meeting),
+              ),
+            );
           },
           onSubscribePressed: () {},
         );
