@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:hangout/repositories/user_repository.dart';
 import '../widgets/meeting_card.dart';
 import '../repositories/meeting_repository.dart';
+import 'meeting_details_page.dart';
 import '../models/meeting.dart';
 import '../models/coordinates.dart';
 import '../models/user.dart';
@@ -108,7 +109,11 @@ class _HomePageState extends State<HomePage> {
           meeting: meeting,
           isSubscribed: isSubscribed,
           onSeeMorePressed: () {
-            print('Navegando para detalhes do evento: ${meeting.name}');
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => MeetingDetailsPage(meeting: meeting),
+              ),
+            );
           },
           onSubscribePressed: () => _handleSubscription(meeting),
         );

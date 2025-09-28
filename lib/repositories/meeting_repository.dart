@@ -64,6 +64,14 @@ class MeetingRepository with ChangeNotifier {
     return subscribedMeetings;
   }
 
+  Meeting? getMeetingById(int id) {
+    try {
+      return _allMeetings.firstWhere((meeting) => meeting.meeting_id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<void> createMeeting({
     required String name,
     required String description,
