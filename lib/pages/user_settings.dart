@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:hangout/pages/login.dart';
 import '../repositories/user_repository.dart';
 import '../widgets/user_data_field.dart';
 import '../models/user.dart';
@@ -19,6 +21,37 @@ class _UserSettingsState extends State<UserSettings> {
     super.initState();
 
     _user = _repository.getUser(1);
+  }
+
+  // NOVO: realiza logout usando o UserRepository do Provider
+  Future<void> _logout() async {
+    try {
+      final repo = context.read<UserRepository>();
+      await repo.logout();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Logout realizado com sucesso.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao deslogar: ${e.toString()}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -50,6 +83,13 @@ class _UserSettingsState extends State<UserSettings> {
               ),
             ),
             UserField(user: _user),
+            const SizedBox(height: 20),
+            // NOVO: Tile de logout nas configurações
+            ListTile(
+              leading: const Icon(Icons.exit_to_app, color: Colors.redAccent),
+              title: const Text('Sair', style: TextStyle(color: Colors.redAccent)),
+              onTap: _logout,
+            ),
           ],
         ),
       ),

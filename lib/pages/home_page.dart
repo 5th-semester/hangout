@@ -23,6 +23,39 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _handleSubscription(Meeting meeting) {
+    // obtém repositórios e usuário atual
+    final userRepository = context.read<UserRepository>();
+    final meetingRepository = context.read<MeetingRepository>();
+    final User? currentUser = userRepository.currentUser;
+
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Você precisa estar logado para se inscrever.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final bool isSubscribed = meetingRepository.isUserSubscribed(
+      meeting: meeting,
+      user: currentUser,
+    );
+
+    if (isSubscribed) {
+      // Se já inscrito, sai do evento
+      meetingRepository.unsubscribeFromMeeting(meeting: meeting, user: currentUser);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Você saiu de "${meeting.name}".'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Se não inscrito, verifica limite e realiza inscrição
     if (meeting.users.length >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -35,28 +68,15 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    final userRepository = context.read<UserRepository>();
-    final meetingRepository = context.read<MeetingRepository>();
-    final User? currentUser = userRepository.currentUser;
-
-    if (currentUser != null) {
-      meetingRepository.subscribeToMeeting(meeting: meeting, user: currentUser);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Inscrição em "${meeting.name}" realizada com sucesso!',
-          ),
-          backgroundColor: Colors.green,
+    meetingRepository.subscribeToMeeting(meeting: meeting, user: currentUser);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Inscrição em "${meeting.name}" realizada com sucesso!',
         ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Você precisa estar logado para se inscrever.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   @override

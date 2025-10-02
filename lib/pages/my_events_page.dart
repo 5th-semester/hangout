@@ -59,7 +59,27 @@ class MyEventsPage extends StatelessWidget {
               ),
             );
           },
-          onSubscribePressed: () {},
+          onSubscribePressed: () {
+            // Ao tocar em "Inscrito" na lista de Meus Eventos, permite sair do evento
+            final meetingRepo = context.read<MeetingRepository>();
+            final currentUser = context.read<UserRepository>().currentUser;
+            if (currentUser == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Você precisa estar logado para sair do evento.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              return;
+            }
+            meetingRepo.unsubscribeFromMeeting(meeting: meeting, user: currentUser);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Você saiu de "${meeting.name}".'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          },
         );
       },
     );

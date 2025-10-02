@@ -121,6 +121,38 @@ class MeetingRepository with ChangeNotifier {
     }
   }
 
+  Future<void> unsubscribeFromMeeting({
+    required Meeting meeting,
+    required User user,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    try {
+      final meetingToUpdate = _allMeetings.firstWhere(
+        (m) => m.meeting_id == meeting.meeting_id,
+      );
+
+      final removed = meetingToUpdate.users.removeWhere(
+        (u) => u.user_id == user.user_id,
+      );
+
+      // removeWhere retorna void, então checamos existência antes para logs
+      final wasSubscribed = !meetingToUpdate.users.any((u) => u.user_id == user.user_id);
+
+      if (wasSubscribed) {
+        // Como já removemos acima, apenas logamos e notificamos
+        print('🔻 Usuário "${user.name}" saiu de "${meeting.name}"');
+        notifyListeners();
+      } else {
+        // Caso o usuário não tenha sido inscrito, apenas log
+        print('ℹ️ Usuário "${user.name}" não estava inscrito em "${meeting.name}"');
+      }
+    } catch (e) {
+      // Se o encontro não existir, apenas logar (não lançar)
+      print('⚠️ Falha ao localizar encontro ${meeting.meeting_id} para unsubscribe: $e');
+    }
+  }
+
   bool isUserSubscribed({required Meeting meeting, required User? user}) {
     if (user == null) return false;
     return meeting.users.any((u) => u.user_id == user.user_id);

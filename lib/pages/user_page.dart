@@ -23,7 +23,9 @@ class _UserPageState extends State<UserPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Perfil')),
+      appBar: AppBar(
+        title: const Text('Perfil'),
+      ),
       body: Center(
         child: Column(
           children: [
@@ -83,3 +85,4 @@ class _UserPageState extends State<UserPage> {
     );
   }
 }
+

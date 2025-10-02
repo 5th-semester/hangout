@@ -31,7 +31,8 @@ class _MeetingDetailsPageState extends State<MeetingDetailsPage> {
     _isFull = widget.meeting.users.length >= 5;
   }
 
-  void _handleSubscription() {
+  // ALTERADO: torna assíncrono, usa repositório e sincroniza estado após operação
+  Future<void> _handleSubscription() async {
     final meetingRepo = context.read<MeetingRepository>();
     final currentUser = context.read<UserRepository>().currentUser;
 
@@ -45,13 +46,51 @@ class _MeetingDetailsPageState extends State<MeetingDetailsPage> {
       return;
     }
 
-    meetingRepo.subscribeToMeeting(meeting: widget.meeting, user: currentUser);
+    // Atualiza o meeting atual a partir do repositório antes da ação
+    final currentMeeting =
+        meetingRepo.getMeetingById(widget.meeting.meeting_id) ?? widget.meeting;
 
-    // Atualiza o estado localmente para feedback instantâneo na UI
+    if (_isSubscribed) {
+      // Sair do evento
+      await meetingRepo.unsubscribeFromMeeting(
+        meeting: currentMeeting,
+        user: currentUser,
+      );
+      // Obtém estado atualizado
+      final updated = meetingRepo.getMeetingById(widget.meeting.meeting_id) ?? currentMeeting;
+      setState(() {
+        _isSubscribed = meetingRepo.isUserSubscribed(meeting: updated, user: currentUser);
+        _isFull = updated.users.length >= 5;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Você saiu de "${widget.meeting.name}".'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Se não inscrito, checa limite e inscreve
+    if (currentMeeting.users.length >= 5) {
+      setState(() {
+        _isFull = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Este evento já atingiu o número máximo de participantes.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    await meetingRepo.subscribeToMeeting(meeting: currentMeeting, user: currentUser);
+    final updated = meetingRepo.getMeetingById(widget.meeting.meeting_id) ?? currentMeeting;
     setState(() {
-      _isSubscribed = true;
+      _isSubscribed = meetingRepo.isUserSubscribed(meeting: updated, user: currentUser);
+      _isFull = updated.users.length >= 5;
     });
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Inscrição em "${widget.meeting.name}" realizada!'),
@@ -178,13 +217,14 @@ class _MeetingDetailsPageState extends State<MeetingDetailsPage> {
     );
   }
 
+  // ALTERADO: quando inscrito, exibe botão para sair do evento (acionável)
   Widget _buildActionButton() {
     if (_isSubscribed) {
       return FloatingActionButton.extended(
-        onPressed: null,
-        label: const Text('Inscrito'),
-        icon: const Icon(Icons.check_circle_outline),
-        backgroundColor: Colors.green,
+        onPressed: _handleSubscription,
+        label: const Text('Sair do Evento'),
+        icon: const Icon(Icons.exit_to_app),
+        backgroundColor: Colors.orange,
       );
     }
     if (_isFull) {
