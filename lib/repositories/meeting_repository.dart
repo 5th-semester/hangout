@@ -94,7 +94,6 @@ class MeetingRepository with ChangeNotifier {
   Future<List<Meeting>> getSubscribedMeetings({required User user}) async {
     final querySnapshot = await _meetingsCollection
         .where('userIds', arrayContains: user.uid)
-        .orderBy('datetime')
         .get();
 
     final subscribedMeetings = querySnapshot.docs
@@ -105,7 +104,7 @@ class MeetingRepository with ChangeNotifier {
         )
         .toList();
 
-    print(subscribedMeetings);
+    subscribedMeetings.sort((a, b) => a.datetime.compareTo(b.datetime));
 
     return subscribedMeetings;
   }
