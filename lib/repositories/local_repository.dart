@@ -1,4 +1,4 @@
-import './mocks/local_mocks.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/coordinates.dart';
 import '../models/local.dart';
 import '../utils/geolocation_utils.dart';
@@ -6,18 +6,46 @@ import '../utils/geolocation_utils.dart';
 class _LocalWithDistance {
   final Local local;
   final double distanceInKm;
-
   _LocalWithDistance({required this.local, required this.distanceInKm});
 }
 
 class LocalRepository {
-  final List<Local> _allLocals = LocalMocks.list;
+  final FirebaseFirestore _firestore;
+  late final CollectionReference _localsCollection;
 
-  List<Local> getClosestLocals({
+  LocalRepository({FirebaseFirestore? firestore})
+    : _firestore = firestore ?? FirebaseFirestore.instance {
+    _localsCollection = _firestore.collection('locals');
+  }
+
+  Future<Local?> getLocalById(String id) async {
+    try {
+      final doc = await _localsCollection.doc(id).get();
+      if (doc.exists) {
+        return Local.fromFirestore(
+          doc as DocumentSnapshot<Map<String, dynamic>>,
+        );
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<List<Local>> getClosestLocals({
     required Coordinates userCoordinates,
     int limit = 5,
-  }) {
-    final localsWithDistance = _allLocals.map((local) {
+  }) async {
+    final localsSnapshot = await _localsCollection.get();
+    final allLocals = localsSnapshot.docs
+        .map(
+          (doc) => Local.fromFirestore(
+            doc as DocumentSnapshot<Map<String, dynamic>>,
+          ),
+        )
+        .toList();
+
+    final localsWithDistance = allLocals.map((local) {
       final distance = calculateDistanceInKm(
         userCoordinates,
         local.coordinates,

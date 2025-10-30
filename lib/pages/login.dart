@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hangout/pages/main_page.dart';
+import 'package:hangout/pages/register.dart';
+import 'package:hangout/repositories/user_repository.dart';
 import 'package:provider/provider.dart';
-import 'home_page.dart';
-import 'register.dart';
-import '../repositories/user_repository.dart';
 
-// 1. CONVERTA PARA STATEFULWIDGET
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -14,32 +12,24 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // 2. CRIE CONTROLLERS E VARIÁVEIS DE ESTADO
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  // Função para lidar com o clique no botão de login
   Future<void> _login() async {
-    // Pega os valores dos campos de texto
     final email = _emailController.text;
     final password = _passwordController.text;
 
-    final _userRepository = Provider.of<UserRepository>(context, listen: false);
-
-    // Inicia o estado de carregamento
     setState(() {
       _isLoading = true;
     });
 
     try {
-      await _userRepository.login(email, password);
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => MainPage()),
-        );
-      }
+      final userRepository = Provider.of<UserRepository>(
+        context,
+        listen: false,
+      );
+      await userRepository.login(email, password);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -89,7 +79,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 40),
                 TextField(
-                  // 3. ASSOCIE OS CONTROLLERS AOS TEXTFIELDS
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
@@ -122,10 +111,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  // Chama a função de login. Se estiver carregando, desabilita o botão.
                   onPressed: _isLoading ? null : _login,
                   child: _isLoading
-                      // 5. EXIBE UM INDICADOR DE CARREGAMENTO
                       ? const SizedBox(
                           height: 20,
                           width: 20,

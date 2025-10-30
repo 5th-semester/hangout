@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../repositories/user_repository.dart';
+import 'package:provider/provider.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -10,17 +11,12 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // NOVO: Instância do repositório
-  final _userRepository = UserRepository();
-
-  // NOVO: Controllers para capturar os dados dos campos
   final _nameController = TextEditingController();
   final _cpfController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  // NOVO: Chave para o formulário para validações futuras
   final _formKey = GlobalKey<FormState>();
 
   final _cpfMaskFormatter = MaskTextInputFormatter(
@@ -29,12 +25,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     type: MaskAutoCompletionType.lazy,
   );
 
-  // NOVO: Variável para controlar o estado de loading
   bool _isLoading = false;
 
-  // NOVO: Função para lidar com o processo de cadastro
   Future<void> _register() async {
-    // Validações básicas
     if (_nameController.text.isEmpty ||
         _cpfController.text.isEmpty ||
         _emailController.text.isEmpty ||
@@ -50,29 +43,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = true);
 
+    final userRepository = context.read<UserRepository>();
+
     try {
-      final newUser = await _userRepository.createUser(
-        _nameController.text,
-        _emailController.text,
-        _cpfController.text,
-        _passwordController.text,
+      await userRepository.createUser(
+        name: _nameController.text,
+        email: _emailController.text,
+        cpf: _cpfController.text,
+        password: _passwordController.text,
       );
 
-      _showSnackBar('Usuário ${newUser.name} cadastrado com sucesso!');
+      _showSnackBar('Usuário cadastrado com sucesso!');
 
-      // Volta para a tela anterior (login) após o sucesso
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      // Exibe o erro vindo do repositório (ex: "Email já em uso")
       _showSnackBar(e.toString().replaceAll('Exception: ', ''), isError: true);
     } finally {
-      // Garante que o loading seja desativado mesmo se ocorrer um erro
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // NOVO: Helper para exibir Snackbars
   void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -81,7 +73,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // NOVO: Limpa os controllers ao sair da tela
   @override
   void dispose() {
     _nameController.dispose();
@@ -105,7 +96,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         padding: const EdgeInsets.all(24.0),
         child: Center(
           child: SingleChildScrollView(
-            // NOVO: Adicionado um Form para encapsular os campos
             child: Form(
               key: _formKey,
               child: Column(
@@ -118,8 +108,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     color: Colors.deepPurple,
                   ),
                   const SizedBox(height: 40),
-
-                  // ALTERADO: Conectado o controller
                   TextField(
                     controller: _nameController,
                     keyboardType: TextInputType.name,
@@ -132,8 +120,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // ALTERADO: Conectado o controller
                   TextField(
                     controller: _cpfController,
                     keyboardType: TextInputType.number,
@@ -147,8 +133,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // ALTERADO: Conectado o controller
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -161,8 +145,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // ALTERADO: Conectado o controller
                   TextField(
                     controller: _passwordController,
                     obscureText: true,
@@ -175,8 +157,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // ALTERADO: Conectado o controller
                   TextField(
                     controller: _confirmPasswordController,
                     obscureText: true,
@@ -189,8 +169,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // ALTERADO: Lógica de cadastro e loading no botão
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -200,9 +178,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: _isLoading
-                        ? null
-                        : _register, // Desabilita o botão durante o loading
+                    onPressed: _isLoading ? null : _register,
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,
@@ -218,7 +194,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                   ),
                   const SizedBox(height: 12),
-
                   TextButton(
                     onPressed: () {
                       Navigator.pop(context);

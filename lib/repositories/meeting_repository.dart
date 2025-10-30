@@ -1,33 +1,72 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
-import './mocks/meeting_mocks.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/coordinates.dart';
 import '../models/meeting.dart';
 import '../models/user.dart';
 import '../models/local.dart';
+import '../utils/geolocation_utils.dart';
+
+class MeetingData {
+  final Meeting meeting;
+  final Local local;
+  MeetingData({required this.meeting, required this.local});
+}
 
 class _MeetingWithDistance {
   final Meeting meeting;
+  final Local local;
   final double distanceInKm;
-
-  _MeetingWithDistance({required this.meeting, required this.distanceInKm});
+  _MeetingWithDistance({
+    required this.meeting,
+    required this.local,
+    required this.distanceInKm,
+  });
 }
 
 class MeetingRepository with ChangeNotifier {
-  final List<Meeting> _allMeetings = List.from(MeetingMocks.list);
+  final FirebaseFirestore _firestore;
+  late final CollectionReference _meetingsCollection;
+  late final CollectionReference _localsCollection;
 
-  List<Meeting> getPaginatedMeetingsByProximity({
+  MeetingRepository({FirebaseFirestore? firestore})
+    : _firestore = firestore ?? FirebaseFirestore.instance {
+    _meetingsCollection = _firestore.collection('meetings');
+    _localsCollection = _firestore.collection('locals');
+  }
+
+  Future<List<MeetingData>> getPaginatedMeetingsByProximity({
     required Coordinates userCoordinates,
     required int itemsPerPage,
-    int? lastMeetingId,
-  }) {
-    final meetingsWithDistance = _allMeetings.map((meeting) {
-      final distance = _calculateDistanceInKm(
-        userCoordinates,
-        meeting.local.coordinates,
-      );
-      return _MeetingWithDistance(meeting: meeting, distanceInKm: distance);
-    }).toList();
+    String? lastMeetingId,
+  }) async {
+    final meetingsSnapshot = await _meetingsCollection.get();
+    final allMeetings = meetingsSnapshot.docs
+        .map(
+          (doc) => Meeting.fromFirestore(
+            doc as DocumentSnapshot<Map<String, dynamic>>,
+          ),
+        )
+        .toList();
+
+    final meetingsWithDistance = await Future.wait(
+      allMeetings.map((meeting) async {
+        final localDoc = await _localsCollection.doc(meeting.localId).get();
+        final local = Local.fromFirestore(
+          localDoc as DocumentSnapshot<Map<String, dynamic>>,
+        );
+        final distance = calculateDistanceInKm(
+          userCoordinates,
+          local.coordinates,
+        );
+        return _MeetingWithDistance(
+          meeting: meeting,
+          local: local,
+          distanceInKm: distance,
+        );
+      }),
+    );
 
     meetingsWithDistance.sort(
       (a, b) => a.distanceInKm.compareTo(b.distanceInKm),
@@ -36,7 +75,7 @@ class MeetingRepository with ChangeNotifier {
     int startIndex = 0;
     if (lastMeetingId != null) {
       final lastIndex = meetingsWithDistance.indexWhere(
-        (m) => m.meeting.meeting_id == lastMeetingId,
+        (m) => m.meeting.id == lastMeetingId,
       );
       if (lastIndex != -1) {
         startIndex = lastIndex + 1;
@@ -46,100 +85,113 @@ class MeetingRepository with ChangeNotifier {
     final paginatedList = meetingsWithDistance
         .skip(startIndex)
         .take(itemsPerPage)
-        .map((m) => m.meeting)
+        .map((m) => MeetingData(meeting: m.meeting, local: m.local))
         .toList();
 
     return paginatedList;
   }
 
-  List<Meeting> getSubscribedMeetings({required User user}) {
-    final subscribedMeetings = _allMeetings.where((meeting) {
-      return meeting.users.any(
-        (subscribedUser) => subscribedUser.user_id == user.user_id,
-      );
-    }).toList();
+  Future<List<Meeting>> getSubscribedMeetings({required User user}) async {
+    final querySnapshot = await _meetingsCollection
+        .where('userIds', arrayContains: user.uid)
+        .get();
+
+    final subscribedMeetings = querySnapshot.docs
+        .map(
+          (doc) => Meeting.fromFirestore(
+            doc as DocumentSnapshot<Map<String, dynamic>>,
+          ),
+        )
+        .toList();
 
     subscribedMeetings.sort((a, b) => a.datetime.compareTo(b.datetime));
 
     return subscribedMeetings;
   }
 
-  Meeting? getMeetingById(int id) {
+  Future<Meeting?> getMeetingById(String id) async {
     try {
-      return _allMeetings.firstWhere((meeting) => meeting.meeting_id == id);
+      final doc = await _meetingsCollection.doc(id).get();
+      if (doc.exists) {
+        return Meeting.fromFirestore(
+          doc as DocumentSnapshot<Map<String, dynamic>>,
+        );
+      }
+      return null;
     } catch (e) {
       return null;
     }
   }
 
-  Future<void> createMeeting({
+  Stream<Meeting?> getMeetingStreamById(String id) {
+    return _meetingsCollection.doc(id).snapshots().map((doc) {
+      if (doc.exists) {
+        return Meeting.fromFirestore(
+          doc as DocumentSnapshot<Map<String, dynamic>>,
+        );
+      }
+      return null;
+    });
+  }
+
+  Future<Meeting> createMeeting({
     required String name,
     required String description,
     required DateTime datetime,
     required Local local,
     required User creatorUser,
   }) async {
-    await Future.delayed(const Duration(seconds: 1));
-    final newId = _allMeetings.isNotEmpty
-        ? _allMeetings.map((m) => m.meeting_id).reduce(max) + 1
-        : 1;
+    final newMeetingData = {
+      'name': name,
+      'description': description,
+      'datetime': Timestamp.fromDate(datetime),
+      'localId': local.id,
+      'userIds': [creatorUser.uid],
+    };
+
+    final docRef = await _meetingsCollection.add(newMeetingData);
+
     final newMeeting = Meeting(
-      meeting_id: newId,
+      id: docRef.id,
       name: name,
       description: description,
       datetime: datetime,
-      local: local,
-      users: [creatorUser],
+      localId: local.id,
+      userIds: [creatorUser.uid],
     );
-    _allMeetings.add(newMeeting);
-    print('✅ Encontro "${newMeeting.name}" criado com sucesso!');
+
     notifyListeners();
+    return newMeeting;
   }
 
   Future<void> subscribeToMeeting({
     required Meeting meeting,
     required User user,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    final meetingRef = _meetingsCollection.doc(meeting.id);
 
-    final meetingToUpdate = _allMeetings.firstWhere(
-      (m) => m.meeting_id == meeting.meeting_id,
-    );
+    await meetingRef.update({
+      'userIds': FieldValue.arrayUnion([user.uid]),
+    });
 
-    final isAlreadySubscribed = meetingToUpdate.users.any(
-      (u) => u.user_id == user.user_id,
-    );
+    notifyListeners();
+  }
 
-    if (!isAlreadySubscribed) {
-      meetingToUpdate.users.add(user);
-      print('✅ Usuário "${user.name}" inscrito em "${meeting.name}"');
-      notifyListeners();
-    } else {
-      print(
-        'ℹ️ Usuário "${user.name}" já estava inscrito em "${meeting.name}"',
-      );
-    }
+  Future<void> unsubscribeFromMeeting({
+    required Meeting meeting,
+    required User user,
+  }) async {
+    final meetingRef = _meetingsCollection.doc(meeting.id);
+
+    await meetingRef.update({
+      'userIds': FieldValue.arrayRemove([user.uid]),
+    });
+
+    notifyListeners();
   }
 
   bool isUserSubscribed({required Meeting meeting, required User? user}) {
     if (user == null) return false;
-    return meeting.users.any((u) => u.user_id == user.user_id);
-  }
-
-  double _calculateDistanceInKm(Coordinates point1, Coordinates point2) {
-    const earthRadiusKm = 6371;
-    final dLat = _degreesToRadians(point2.latitude - point1.latitude);
-    final dLon = _degreesToRadians(point2.longitude - point1.longitude);
-    final lat1 = _degreesToRadians(point1.latitude);
-    final lat2 = _degreesToRadians(point2.latitude);
-    final a =
-        sin(dLat / 2) * sin(dLat / 2) +
-        sin(dLon / 2) * sin(dLon / 2) * cos(lat1) * cos(lat2);
-    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return earthRadiusKm * c;
-  }
-
-  double _degreesToRadians(double degrees) {
-    return degrees * pi / 180;
+    return meeting.userIds.any((id) => id == user.uid);
   }
 }

@@ -4,14 +4,16 @@ import '../models/meeting.dart';
 
 class MeetingCard extends StatelessWidget {
   final Meeting meeting;
-  final bool isSubscribed; // 1. NOVO PARÂMETRO ADICIONADO
+  final bool isSubscribed;
+  final String localName;
   final VoidCallback onSubscribePressed;
   final VoidCallback onSeeMorePressed;
 
   const MeetingCard({
     super.key,
     required this.meeting,
-    required this.isSubscribed, // 2. TORNA O PARÂMETRO OBRIGATÓRIO
+    required this.localName,
+    required this.isSubscribed,
     required this.onSubscribePressed,
     required this.onSeeMorePressed,
   });
@@ -58,7 +60,7 @@ class MeetingCard extends StatelessWidget {
             Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
             const SizedBox(width: 4),
             Text(
-              meeting.local.name,
+              localName,
               style: Theme.of(
                 context,
               ).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
@@ -106,7 +108,7 @@ class MeetingCard extends StatelessWidget {
   }
 
   Widget _buildParticipantCountChip(BuildContext context) {
-    final isFull = meeting.users.length >= 5;
+    final isFull = meeting.userIds.length >= 5;
     return Chip(
       avatar: Icon(
         Icons.people_outline,
@@ -114,7 +116,7 @@ class MeetingCard extends StatelessWidget {
         color: isFull ? Colors.red : Theme.of(context).primaryColor,
       ),
       label: Text(
-        '${meeting.users.length} / 5 inscritos',
+        '${meeting.userIds.length} / 5 inscritos',
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
@@ -122,16 +124,14 @@ class MeetingCard extends StatelessWidget {
     );
   }
 
-  // 3. MÉTODO ATUALIZADO PARA USAR O NOVO PARÂMETRO
   Widget _buildActionButtons() {
-    final isFull = meeting.users.length >= 5;
+    final isFull = meeting.userIds.length >= 5;
 
-    // Define qual botão de ação será exibido
     Widget actionButton;
 
     if (isSubscribed) {
       actionButton = OutlinedButton.icon(
-        onPressed: null, // Botão desabilitado
+        onPressed: null,
         icon: const Icon(Icons.check_circle_outline, size: 18),
         label: const Text('Inscrito'),
         style: OutlinedButton.styleFrom(
@@ -140,7 +140,7 @@ class MeetingCard extends StatelessWidget {
       );
     } else if (isFull) {
       actionButton = ElevatedButton(
-        onPressed: null, // Botão desabilitado
+        onPressed: null,
         style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
         child: const Text('Lotado'),
       );
@@ -155,7 +155,7 @@ class MeetingCard extends StatelessWidget {
       children: [
         TextButton(onPressed: onSeeMorePressed, child: const Text('Ver Mais')),
         const SizedBox(width: 8),
-        actionButton, // Usa o widget de botão definido acima
+        actionButton,
       ],
     );
   }

@@ -1,94 +1,173 @@
 import 'dart:async';
-
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../../models/user.dart';
-import './mocks/user_mocks.dart';
-import 'dart:math';
 
-class UserRepository {
+class UserRepository with ChangeNotifier {
+  final fb_auth.FirebaseAuth _firebaseAuth;
+  final FirebaseFirestore _firestore;
+  late final CollectionReference _usersCollection;
+
   User? _currentUser;
-  final List<User> _allUsers = UserMocks.list;
   User? get currentUser => _currentUser;
 
-  Future<User> login(String email, String password) async {
-    await Future.delayed(const Duration(seconds: 1));
+  UserRepository({
+    fb_auth.FirebaseAuth? firebaseAuth,
+    FirebaseFirestore? firestore,
+  }) : _firebaseAuth = firebaseAuth ?? fb_auth.FirebaseAuth.instance,
+       _firestore = firestore ?? FirebaseFirestore.instance {
+    _usersCollection = _firestore.collection('users');
+  }
 
+  Future<void> login(String email, String password) async {
     try {
-      final user = UserMocks.list.firstWhere(
-        (user) => user.email == email && user.password == password,
+      final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
+
+      final firebaseUser = userCredential.user;
+      if (firebaseUser == null) {
+        throw Exception('Usuário não encontrado após o login.');
+      }
+
+      final user = await _getUserData(firebaseUser.uid);
+      if (user == null) {
+        throw Exception('Dados do usuário não encontrados no banco de dados.');
+      }
+
       _currentUser = user;
-      print('✅ Login bem-sucedido para: ${user.name}');
-      return user;
+      notifyListeners();
+    } on fb_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found' ||
+          e.code == 'wrong-password' ||
+          e.code == 'invalid-credential') {
+        throw Exception('Usuário ou senha inválidos.');
+      }
+      throw Exception('Ocorreu um erro no login.');
     } catch (e) {
-      print('❌ Falha no login: Usuário ou senha inválidos.');
-      throw Exception('Usuário ou senha inválidos.');
+      throw Exception(e.toString());
+    }
+  }
+
+  Future<void> createUser({
+    required String name,
+    required String email,
+    required String cpf,
+    required String password,
+  }) async {
+    try {
+      final unmaskedCpf = cpf.replaceAll(RegExp(r'[^\d]'), '');
+
+      final cpfQuery = await _usersCollection
+          .where('cpf', isEqualTo: unmaskedCpf)
+          .limit(1)
+          .get();
+
+      if (cpfQuery.docs.isNotEmpty) {
+        throw Exception('Este CPF já está cadastrado.');
+      }
+
+      final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final firebaseUser = userCredential.user;
+      if (firebaseUser == null) {
+        throw Exception('Não foi possível criar o usuário na autenticação.');
+      }
+
+      final newUser = User(
+        uid: firebaseUser.uid,
+        name: name,
+        email: email,
+        cpf: unmaskedCpf,
+      );
+
+      await _usersCollection.doc(newUser.uid).set(newUser.toFirestore());
+
+      _currentUser = newUser;
+      notifyListeners();
+    } on fb_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        throw Exception('Este email já está em uso.');
+      }
+      throw Exception('Ocorreu um erro ao criar a conta.');
+    } catch (e) {
+      throw Exception(e.toString());
     }
   }
 
   Future<void> logout() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    if (_currentUser != null) {
-      print('🚪 Logout realizado para: ${_currentUser!.name}');
+    try {
+      await _firebaseAuth.signOut();
       _currentUser = null;
-    } else {
-      print('Nenhum usuário estava logado.');
+      notifyListeners();
+    } catch (e) {
+      throw Exception('Erro ao fazer logout: $e');
     }
   }
 
-  Future<User> createUser(
-    String name,
-    String email,
-    String cpf,
-    String password,
-  ) async {
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Remove a máscara do CPF para salvar e comparar
-    final unmaskedCpf = cpf.replaceAll(RegExp(r'[^\d]'), '');
-
-    // Verifica se o email ou CPF já estão em uso
-    if (UserMocks.list.any((user) => user.email == email)) {
-      print('❌ Falha no cadastro: Email já está em uso.');
-      throw Exception('Este email já está em uso.');
-    }
-    if (UserMocks.list.any((user) => user.cpf == unmaskedCpf)) {
-      print('❌ Falha no cadastro: CPF já está em uso.');
-      throw Exception('Este CPF já está cadastrado.');
+  Future<List<User>> getUsersFromIds(List<String> userIds) async {
+    if (userIds.isEmpty) {
+      return [];
     }
 
-    // Cria um novo usuário com um ID único
-    // Em um app real, o ID seria gerado pelo banco de dados
-    final newId = (UserMocks.list.map((u) => u.user_id).reduce(max) + 1);
+    final validIds = userIds.where((id) => id.isNotEmpty).toList();
 
-    final newUser = User(
-      user_id: newId,
-      name: name,
-      email: email,
-      cpf: unmaskedCpf, // Salva o CPF sem a máscara
-      password: password,
-    );
+    if (validIds.isEmpty) {
+      return [];
+    }
 
-    // Adiciona o novo usuário à lista mockada
-    UserMocks.list.add(newUser);
-    print(
-      '✅ Usuário criado com sucesso: ${newUser.name} (ID: ${newUser.user_id})',
-    );
+    try {
+      final userDocs = await Future.wait(
+        validIds.map((id) => _usersCollection.doc(id).get()),
+      );
 
-    // Opcional: Faz o login automático do novo usuário
-    _currentUser = newUser;
-
-    return newUser;
+      final userList = userDocs
+          .where((doc) => doc.exists)
+          .map(
+            (doc) => User.fromFirestore(
+              doc as DocumentSnapshot<Map<String, dynamic>>,
+            ),
+          )
+          .toList();
+      return userList;
+    } catch (e) {
+      return [];
+    }
   }
 
-  User getUser(int index) {
-    if (_allUsers.isEmpty) {
-      return User(user_id: 0, name: "0", email: "0", cpf: "0", password: "0");
+  Future<User?> _getUserData(String uid) async {
+    try {
+      final doc = await _usersCollection.doc(uid).get();
+      if (doc.exists) {
+        return User.fromFirestore(
+          doc as DocumentSnapshot<Map<String, dynamic>>,
+        );
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
-    return _allUsers[index];
   }
 
-  updateUser() {}
-
-  deleteUser() {}
+  String _mapFirebaseError(String code) {
+    switch (code) {
+      case 'user-not-found':
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Email ou senha inválidos.';
+      case 'email-already-in-use':
+        return 'Este email já está em uso.';
+      case 'weak-password':
+        return 'A senha é muito fraca.';
+      case 'invalid-email':
+        return 'O email fornecido não é válido.';
+      default:
+        return 'Erro de autenticação. Tente novamente.';
+    }
+  }
 }

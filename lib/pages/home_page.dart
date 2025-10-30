@@ -17,13 +17,31 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _userLocation = Coordinates(latitude: -25.095, longitude: -50.162);
+  Future<List<MeetingData>>? _meetingsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMeetings();
+  }
+
+  void _loadMeetings() {
+    setState(() {
+      _meetingsFuture = context
+          .read<MeetingRepository>()
+          .getPaginatedMeetingsByProximity(
+            userCoordinates: _userLocation,
+            itemsPerPage: 10,
+          );
+    });
+  }
 
   Future<void> _refreshMeetings() async {
-    await Future.delayed(const Duration(seconds: 1));
+    _loadMeetings();
   }
 
   void _handleSubscription(Meeting meeting) {
-    if (meeting.users.length >= 5) {
+    if (meeting.userIds.length >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -64,42 +82,52 @@ class _HomePageState extends State<HomePage> {
     final meetingRepository = context.watch<MeetingRepository>();
     final currentUser = context.watch<UserRepository>().currentUser;
 
-    final meetings = meetingRepository.getPaginatedMeetingsByProximity(
-      userCoordinates: _userLocation,
-      itemsPerPage: 10,
-    );
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Eventos Próximos'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () {
-              /* TODO */
-            },
-          ),
+          IconButton(icon: const Icon(Icons.filter_list), onPressed: () {}),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _refreshMeetings,
-        child: meetings.isEmpty
-            ? _buildEmptyState()
-            : _buildMeetingsList(meetings, meetingRepository, currentUser),
+        child: FutureBuilder<List<MeetingData>>(
+          future: _meetingsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return const Center(child: Text('Erro ao carregar eventos.'));
+            }
+            final meetingsData = snapshot.data ?? [];
+            if (meetingsData.isEmpty) {
+              return _buildEmptyState();
+            }
+            return _buildMeetingsList(
+              meetingsData,
+              meetingRepository,
+              currentUser,
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildMeetingsList(
-    List<Meeting> meetings,
+    List<MeetingData> meetingsData,
     MeetingRepository repository,
     User? currentUser,
   ) {
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: meetings.length,
+      itemCount: meetingsData.length,
       itemBuilder: (context, index) {
-        final meeting = meetings[index];
+        final meetingData = meetingsData[index];
+        final meeting = meetingData.meeting;
+        final local = meetingData.local;
+
         final bool isSubscribed = repository.isUserSubscribed(
           meeting: meeting,
           user: currentUser,
@@ -107,6 +135,7 @@ class _HomePageState extends State<HomePage> {
 
         return MeetingCard(
           meeting: meeting,
+          localName: local.name,
           isSubscribed: isSubscribed,
           onSeeMorePressed: () {
             Navigator.of(context).push(

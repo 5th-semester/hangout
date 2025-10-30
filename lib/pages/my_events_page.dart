@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../repositories/user_repository.dart';
 import '../repositories/meeting_repository.dart';
+import '../repositories/local_repository.dart';
 import '../models/meeting.dart';
 import '../models/user.dart';
+import '../models/local.dart';
 import '../widgets/meeting_card.dart';
 import 'meeting_details_page.dart';
 
@@ -33,33 +35,57 @@ class MyEventsPage extends StatelessWidget {
       );
     }
 
-    final myMeetings = meetingRepo.getSubscribedMeetings(user: currentUser);
-
-    if (myMeetings.isEmpty) {
-      return _buildEmptyState(context);
-    }
-
-    return _buildMeetingsList(context, myMeetings);
+    return FutureBuilder<List<Meeting>>(
+      future: meetingRepo.getSubscribedMeetings(user: currentUser),
+      builder: (context, meetingSnapshot) {
+        if (meetingSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (meetingSnapshot.hasError) {
+          return const Center(child: Text('Erro ao carregar seus eventos.'));
+        }
+        final myMeetings = meetingSnapshot.data ?? [];
+        if (myMeetings.isEmpty) {
+          return _buildEmptyState(context);
+        }
+        return _buildMeetingsList(context, myMeetings);
+      },
+    );
   }
 
   Widget _buildMeetingsList(BuildContext context, List<Meeting> meetings) {
+    final localRepository = context.read<LocalRepository>();
+
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8, bottom: 8),
       itemCount: meetings.length,
       itemBuilder: (context, index) {
         final meeting = meetings[index];
 
-        return MeetingCard(
-          meeting: meeting,
-          isSubscribed: true,
-          onSeeMorePressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => MeetingDetailsPage(meeting: meeting),
-              ),
+        return FutureBuilder<Local?>(
+          future: localRepository.getLocalById(meeting.localId),
+          builder: (context, localSnapshot) {
+            final localName = localSnapshot.data?.name ?? 'Carregando local...';
+            final bool isLoadingLocal =
+                localSnapshot.connectionState == ConnectionState.waiting;
+
+            return MeetingCard(
+              meeting: meeting,
+              localName: localName,
+              isSubscribed: true,
+              onSeeMorePressed: isLoadingLocal
+                  ? () {}
+                  : () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              MeetingDetailsPage(meeting: meeting),
+                        ),
+                      );
+                    },
+              onSubscribePressed: () {},
             );
           },
-          onSubscribePressed: () {},
         );
       },
     );
