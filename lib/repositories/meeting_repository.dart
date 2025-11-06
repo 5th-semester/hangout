@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/coordinates.dart';
@@ -146,6 +145,7 @@ class MeetingRepository with ChangeNotifier {
       'description': description,
       'datetime': Timestamp.fromDate(datetime),
       'localId': local.id,
+      'creatorId': creatorUser.uid,
       'userIds': [creatorUser.uid],
     };
 
@@ -157,11 +157,29 @@ class MeetingRepository with ChangeNotifier {
       description: description,
       datetime: datetime,
       localId: local.id,
+      creatorId: creatorUser.uid,
       userIds: [creatorUser.uid],
     );
 
     notifyListeners();
     return newMeeting;
+  }
+
+  Future<void> updateMeetingData({
+    required String meetingId,
+    required Map<String, dynamic> data,
+  }) async {
+    await _meetingsCollection.doc(meetingId).update(data);
+    notifyListeners();
+  }
+
+  Future<void> deleteMeeting(String meetingId) async {
+    try {
+      await _meetingsCollection.doc(meetingId).delete();
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> subscribeToMeeting({

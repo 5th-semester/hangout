@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hangout/pages/main_page.dart';
 import 'package:hangout/pages/register.dart';
 import 'package:hangout/repositories/user_repository.dart';
+import 'package:hangout/services/user_service.dart';
 import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -25,11 +25,12 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final userRepository = Provider.of<UserRepository>(
+      final userRepo = Provider.of<UserRepository>(
         context,
         listen: false,
       );
-      await userRepository.login(email, password);
+      final userService = UserService(repository: userRepo);
+      await userService.login(email, password);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-import '../../repositories/user_repository.dart';
+import '../services/user_service.dart';
+import '../repositories/user_repository.dart';
 import 'package:provider/provider.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -28,6 +30,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
 
   Future<void> _register() async {
+    
     if (_nameController.text.isEmpty ||
         _cpfController.text.isEmpty ||
         _emailController.text.isEmpty ||
@@ -43,10 +46,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = true);
 
-    final userRepository = context.read<UserRepository>();
+    final userService = UserService(repository: context.read<UserRepository>());
 
     try {
-      await userRepository.createUser(
+      await userService.createUser(
         name: _nameController.text,
         email: _emailController.text,
         cpf: _cpfController.text,

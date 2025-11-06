@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:hangout/models/user.dart';
-import 'package:hangout/models/local.dart';
-import 'package:hangout/repositories/local_repository.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/meeting.dart';
+import 'package:hangout/models/user.dart';
+import 'package:hangout/models/local.dart';
+import 'package:hangout/repositories/local_repository.dart';
+import '../services/meeting_service.dart';
+import '../services/user_service.dart';
+import '../services/local_service.dart';
 import '../repositories/meeting_repository.dart';
 import '../repositories/user_repository.dart';
+import 'meeting_settings.dart';
 
 class MeetingDetailsPage extends StatefulWidget {
   final Meeting meeting;
@@ -23,7 +27,9 @@ class _MeetingDetailsPageState extends State<MeetingDetailsPage> {
     User? currentUser,
     bool isSubscribed,
   ) {
-    final meetingRepo = context.read<MeetingRepository>();
+    final meetingRepo = MeetingService(
+      repository: context.read<MeetingRepository>(),
+    );
 
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -57,8 +63,9 @@ class _MeetingDetailsPageState extends State<MeetingDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final meetingRepository = context.read<MeetingRepository>();
-    final userRepository = context.read<UserRepository>();
-    final currentUser = userRepository.currentUser;
+    final meetingService = MeetingService(repository: meetingRepository);
+    final currentUser = UserService(repository: context.read<UserRepository>())
+        .currentUser;
 
     return Scaffold(
       appBar: AppBar(
@@ -67,7 +74,7 @@ class _MeetingDetailsPageState extends State<MeetingDetailsPage> {
         elevation: 0,
       ),
       body: StreamBuilder<Meeting?>(
-        stream: meetingRepository.getMeetingStreamById(widget.meeting.id),
+        stream: meetingService.getMeetingStreamById(widget.meeting.id),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -77,10 +84,8 @@ class _MeetingDetailsPageState extends State<MeetingDetailsPage> {
           }
 
           final meeting = snapshot.data!;
-          final isSubscribed = meetingRepository.isUserSubscribed(
-            meeting: meeting,
-            user: currentUser,
-          );
+          final isSubscribed =
+              meetingService.isUserSubscribed(meeting: meeting, user: currentUser);
           final participantCount = meeting.userIds.length;
 
           return SingleChildScrollView(
@@ -109,16 +114,14 @@ class _MeetingDetailsPageState extends State<MeetingDetailsPage> {
         },
       ),
       floatingActionButton: StreamBuilder<Meeting?>(
-        stream: meetingRepository.getMeetingStreamById(widget.meeting.id),
+        stream: meetingService.getMeetingStreamById(widget.meeting.id),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const SizedBox.shrink();
           }
           final meeting = snapshot.data!;
-          final isSubscribed = meetingRepository.isUserSubscribed(
-            meeting: meeting,
-            user: currentUser,
-          );
+          final isSubscribed =
+              meetingService.isUserSubscribed(meeting: meeting, user: currentUser);
           return _buildActionButton(meeting, currentUser, isSubscribed);
         },
       ),
@@ -127,7 +130,7 @@ class _MeetingDetailsPageState extends State<MeetingDetailsPage> {
   }
 
   Widget _buildInfoCard(BuildContext context, Meeting meeting) {
-    final localRepository = context.read<LocalRepository>();
+    final localService = LocalService(repository: context.read<LocalRepository>());
 
     return Card(
       elevation: 2,
@@ -152,7 +155,7 @@ class _MeetingDetailsPageState extends State<MeetingDetailsPage> {
             ),
             const SizedBox(height: 12),
             FutureBuilder<Local?>(
-              future: localRepository.getLocalById(meeting.localId),
+              future: localService.getLocalById(meeting.localId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return _buildInfoRow(
@@ -253,6 +256,19 @@ class _MeetingDetailsPageState extends State<MeetingDetailsPage> {
     bool isSubscribed,
   ) {
     final bool isFull = meeting.userIds.length >= 5;
+
+    if (meeting.creatorId == currentUser?.uid) {
+      return FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => MeetingSettings(meeting: meeting)),
+          );
+        },
+        label: const Text('Editar encontro'),
+        icon: const Icon(Icons.settings),
+        backgroundColor: Colors.grey,
+      );
+    }
 
     if (isSubscribed) {
       return FloatingActionButton.extended(

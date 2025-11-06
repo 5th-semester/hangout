@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:hangout/models/meeting.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:hangout/repositories/user_repository.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'package:hangout/repositories/local_repository.dart';
 import 'package:hangout/repositories/meeting_repository.dart';
-import '../services/user_service.dart';
-import '../services/meeting_service.dart';
 import '../models/local.dart';
 import '../pickers/location_picker.dart';
 import '../pickers/date_time_picker.dart';
 import '../widgets/custom_picker_tile.dart';
+import '../services/meeting_service.dart';
 
-class CreateMeetingPage extends StatefulWidget {
-  const CreateMeetingPage({super.key});
+class MeetingSettings extends StatefulWidget {
+  final Meeting meeting;
+  const MeetingSettings({super.key, required this.meeting});
 
   @override
-  State<CreateMeetingPage> createState() => _CreateMeetingPageState();
+  State<MeetingSettings> createState() => _MeetingSettingsState();
 }
 
-class _CreateMeetingPageState extends State<CreateMeetingPage> {
+class _MeetingSettingsState extends State<MeetingSettings> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _nameController;
@@ -26,12 +29,34 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   Local? _selectedLocal;
   DateTime? _selectedDateTime;
   bool _isLoading = false;
+  bool _isDataLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController();
-    _descriptionController = TextEditingController();
+    _nameController = TextEditingController(text: widget.meeting.name);
+    _descriptionController =
+        TextEditingController(text: widget.meeting.description);
+    _selectedDateTime = widget.meeting.datetime;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isDataLoaded) {
+      _loadInitialLocal();
+      _isDataLoaded = true;
+    }
+  }
+
+  Future<void> _loadInitialLocal() async {
+    final localRepo = context.read<LocalRepository>();
+    final local = await localRepo.getLocalById(widget.meeting.localId);
+    if (mounted) {
+      setState(() {
+        _selectedLocal = local;
+      });
+    }
   }
 
   @override
@@ -69,54 +94,110 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     );
   }
 
-  bool _validateInputs() {
+  Future<void> _submitForm(Meeting meeting) async {
     if (_selectedLocal == null) {
       _showErrorSnackBar('Por favor, selecione um local.');
-      return false;
+      return;
     }
     if (_selectedDateTime == null) {
       _showErrorSnackBar('Por favor, selecione data e hora.');
-      return false;
+      return;
     }
 
     final isFormValid = _formKey.currentState?.validate() ?? false;
     if (!isFormValid) {
-      return false;
-    }
-    return true;
-  }
-
-  Future<void> _submitForm() async {
-    if (!_validateInputs()) return;
-
-    final currentUser = UserService(repository: context.read<UserRepository>()).currentUser;
-    if (currentUser == null) {
-      _showErrorSnackBar('Erro: Nenhum usuário logado. Faça login novamente.');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      final meetingService = MeetingService(repository: context.read<MeetingRepository>());
-      await meetingService.createMeeting(
-        name: _nameController.text,
-        description: _descriptionController.text,
-        datetime: _selectedDateTime!,
-        local: _selectedLocal!,
-        creatorUser: currentUser,
-      );
+      await _updateMeeting(meeting);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Evento criado com sucesso!'),
+          content: Text('Evento atualizado com sucesso!'),
           backgroundColor: Colors.green,
         ),
       );
       Navigator.of(context).pop();
     } catch (e) {
-      _showErrorSnackBar('Ocorreu um erro ao criar o evento: $e');
+      _showErrorSnackBar('Ocorreu um erro ao atualizar o evento: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _updateMeeting(Meeting meeting) {
+    final meetingService = MeetingService(
+      repository: context.read<MeetingRepository>(),
+    );
+
+    final Map<String, dynamic> dataToUpdate = {
+      'name': _nameController.text,
+      'description': _descriptionController.text,
+      'datetime': Timestamp.fromDate(_selectedDateTime!),
+      'localId': _selectedLocal!.id,
+    };
+
+    return meetingService.updateMeetingData(
+      meetingId: meeting.id,
+      data: dataToUpdate,
+    );
+  }
+
+  void _showDeleteConfirmation() {
+    FocusScope.of(context).unfocus();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar Exclusão'),
+        content: const Text(
+            'Tem certeza que deseja excluir este evento? Esta ação não pode ser desfeita.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _deleteMeeting();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteMeeting() async {
+    setState(() => _isLoading = true);
+    try {
+      final meetingService = MeetingService(
+        repository: context.read<MeetingRepository>(),
+      );
+      await meetingService.deleteMeeting(widget.meeting.id);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Evento excluído com sucesso.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.of(context).pop();
+      Navigator.of(context).pop();
+    } catch (e) {
+      _showErrorSnackBar('Erro ao excluir o evento: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -127,7 +208,7 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Criar Novo Evento')),
+      appBar: AppBar(title: const Text('Editar Evento')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -162,7 +243,7 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
               const SizedBox(height: 24),
               CustomPickerTile(
                 label: 'Selecionar Local',
-                valueText: _selectedLocal?.name ?? '',
+                valueText: _selectedLocal?.name ?? 'Carregando local...',
                 icon: Icons.location_on_outlined,
                 onTap: _pickLocation,
               ),
@@ -180,11 +261,25 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
               ),
               const SizedBox(height: 32),
               ElevatedButton.icon(
-                onPressed: _submitForm,
+                onPressed: _isLoading ? null : () => _submitForm(widget.meeting),
                 icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Salvar Evento'),
+                label: Text(_isLoading ? 'Salvando...' : 'Atualizar Evento'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: _isLoading ? null : _showDeleteConfirmation,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Excluir Evento'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  foregroundColor: Theme.of(context).colorScheme.error,
                   textStyle: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

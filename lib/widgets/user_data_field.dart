@@ -20,7 +20,7 @@ class UserField extends StatelessWidget {
   }
 
   Widget _buildInfoField({required String label, required String value}) {
-    return Container(
+    return SizedBox(
       width: 400,
       height: 80,
       child: Card(

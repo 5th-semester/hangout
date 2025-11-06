@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import '../repositories/user_repository.dart';
 import '../repositories/meeting_repository.dart';
 import '../repositories/local_repository.dart';
+import '../services/meeting_service.dart';
+import '../services/local_service.dart';
+import '../services/user_service.dart';
 import '../models/meeting.dart';
 import '../models/user.dart';
 import '../models/local.dart';
@@ -15,18 +18,23 @@ class MyEventsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final meetingRepository = context.watch<MeetingRepository>();
-    final userRepository = context.watch<UserRepository>();
-    final currentUser = userRepository.currentUser;
+    final currentUser =
+        UserService(repository: context.watch<UserRepository>()).currentUser;
+
+    final meetingService = MeetingService(repository: meetingRepository);
+    final localService =
+        LocalService(repository: context.read<LocalRepository>());
 
     return Scaffold(
       appBar: AppBar(title: const Text('Meus Eventos')),
-      body: _buildBody(context, meetingRepository, currentUser),
+      body: _buildBody(context, meetingService, localService, currentUser),
     );
   }
 
   Widget _buildBody(
     BuildContext context,
-    MeetingRepository meetingRepo,
+    MeetingService meetingService,
+    LocalService localService,
     User? currentUser,
   ) {
     if (currentUser == null) {
@@ -36,7 +44,7 @@ class MyEventsPage extends StatelessWidget {
     }
 
     return FutureBuilder<List<Meeting>>(
-      future: meetingRepo.getSubscribedMeetings(user: currentUser),
+      future: meetingService.getSubscribedMeetings(user: currentUser),
       builder: (context, meetingSnapshot) {
         if (meetingSnapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -54,7 +62,8 @@ class MyEventsPage extends StatelessWidget {
   }
 
   Widget _buildMeetingsList(BuildContext context, List<Meeting> meetings) {
-    final localRepository = context.read<LocalRepository>();
+    final localService =
+        LocalService(repository: context.read<LocalRepository>());
 
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8, bottom: 8),
@@ -63,7 +72,7 @@ class MyEventsPage extends StatelessWidget {
         final meeting = meetings[index];
 
         return FutureBuilder<Local?>(
-          future: localRepository.getLocalById(meeting.localId),
+          future: localService.getLocalById(meeting.localId),
           builder: (context, localSnapshot) {
             final localName = localSnapshot.data?.name ?? 'Carregando local...';
             final bool isLoadingLocal =

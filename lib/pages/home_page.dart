@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hangout/repositories/user_repository.dart';
+import '../services/meeting_service.dart';
+import '../services/user_service.dart';
 import '../widgets/meeting_card.dart';
 import '../repositories/meeting_repository.dart';
 import 'meeting_details_page.dart';
@@ -27,12 +29,12 @@ class _HomePageState extends State<HomePage> {
 
   void _loadMeetings() {
     setState(() {
-      _meetingsFuture = context
-          .read<MeetingRepository>()
-          .getPaginatedMeetingsByProximity(
-            userCoordinates: _userLocation,
-            itemsPerPage: 10,
-          );
+      final meetingRepo = context.read<MeetingRepository>();
+      final meetingService = MeetingService(repository: meetingRepo);
+      _meetingsFuture = meetingService.getPaginatedMeetingsByProximity(
+        userCoordinates: _userLocation,
+        itemsPerPage: 10,
+      );
     });
   }
 
@@ -80,7 +82,9 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final meetingRepository = context.watch<MeetingRepository>();
-    final currentUser = context.watch<UserRepository>().currentUser;
+    final meetingService = MeetingService(repository: meetingRepository);
+    final currentUser =
+        UserService(repository: context.watch<UserRepository>()).currentUser;
 
     return Scaffold(
       appBar: AppBar(
@@ -128,10 +132,8 @@ class _HomePageState extends State<HomePage> {
         final meeting = meetingData.meeting;
         final local = meetingData.local;
 
-        final bool isSubscribed = repository.isUserSubscribed(
-          meeting: meeting,
-          user: currentUser,
-        );
+        final bool isSubscribed = MeetingService(repository: repository)
+            .isUserSubscribed(meeting: meeting, user: currentUser);
 
         return MeetingCard(
           meeting: meeting,

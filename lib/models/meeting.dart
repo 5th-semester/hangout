@@ -5,6 +5,7 @@ class Meeting {
   final String name;
   final String description;
   final String localId;
+  final String creatorId;
   final List<String> userIds;
   final DateTime datetime;
 
@@ -13,6 +14,7 @@ class Meeting {
     required this.name,
     required this.description,
     required this.localId,
+    required this.creatorId,
     required this.userIds,
     required this.datetime,
   });
@@ -22,6 +24,7 @@ class Meeting {
       'name': name,
       'description': description,
       'localId': localId,
+      'creatorId': creatorId,
       'userIds': userIds,
       'datetime': Timestamp.fromDate(datetime),
     };
@@ -35,6 +38,7 @@ class Meeting {
       name: data['name'] ?? '',
       description: data['description'] ?? '',
       localId: data['localId'] ?? '',
+      creatorId: data['creatorId'] ?? '',
       userIds: List<String>.from(data['userIds'] ?? []),
       datetime: (data['datetime'] as Timestamp).toDate(),
     );
