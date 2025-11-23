@@ -65,6 +65,11 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final userRepository = context.watch<UserRepository>();
 
+    // Se estiver carregando a persistência, mostre um loading
+    if (userRepository.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     if (userRepository.currentUser == null) {
       return const LoginScreen();
     } else {

@@ -12,6 +12,18 @@ class LocalService {
   Future<List<Local>> getClosestLocals({
     required Coordinates userCoordinates,
     int limit = 5,
-  }) =>
-      repository.getClosestLocals(userCoordinates: userCoordinates, limit: limit);
+  }) => repository.getClosestLocals(
+    userCoordinates: userCoordinates,
+    limit: limit,
+  );
+
+  Future<Local> createLocal({
+    required String name,
+    required String description,
+    required Coordinates coordinates,
+  }) => repository.createLocal(
+    name: name,
+    description: description,
+    coordinates: coordinates,
+  );
 }

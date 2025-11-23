@@ -12,33 +12,44 @@ class UserRepository with ChangeNotifier {
   User? _currentUser;
   User? get currentUser => _currentUser;
 
+  bool _isLoading = true;
+  bool get isLoading => _isLoading;
+
   UserRepository({
     fb_auth.FirebaseAuth? firebaseAuth,
     FirebaseFirestore? firestore,
   }) : _firebaseAuth = firebaseAuth ?? fb_auth.FirebaseAuth.instance,
        _firestore = firestore ?? FirebaseFirestore.instance {
     _usersCollection = _firestore.collection('users');
+    _init();
+  }
+
+  void _init() {
+    _firebaseAuth.authStateChanges().listen((fb_auth.User? firebaseUser) async {
+      if (firebaseUser == null) {
+        _currentUser = null;
+        _isLoading = false;
+        notifyListeners();
+      } else {
+        try {
+          final user = await _getUserData(firebaseUser.uid);
+          _currentUser = user;
+        } catch (e) {
+          _currentUser = null;
+        } finally {
+          _isLoading = false;
+          notifyListeners();
+        }
+      }
+    });
   }
 
   Future<void> login(String email, String password) async {
     try {
-      final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
+      await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-
-      final firebaseUser = userCredential.user;
-      if (firebaseUser == null) {
-        throw Exception('Usuário não encontrado após o login.');
-      }
-
-      final user = await _getUserData(firebaseUser.uid);
-      if (user == null) {
-        throw Exception('Dados do usuário não encontrados no banco de dados.');
-      }
-
-      _currentUser = user;
-      notifyListeners();
     } on fb_auth.FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found' ||
           e.code == 'wrong-password' ||
@@ -87,9 +98,6 @@ class UserRepository with ChangeNotifier {
       );
 
       await _usersCollection.doc(newUser.uid).set(newUser.toFirestore());
-
-      _currentUser = newUser;
-      notifyListeners();
     } on fb_auth.FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
         throw Exception('Este email já está em uso.');
@@ -103,8 +111,6 @@ class UserRepository with ChangeNotifier {
   Future<void> logout() async {
     try {
       await _firebaseAuth.signOut();
-      _currentUser = null;
-      notifyListeners();
     } catch (e) {
       throw Exception('Erro ao fazer logout: $e');
     }

@@ -62,4 +62,28 @@ class LocalRepository {
 
     return closestLocals;
   }
+
+  Future<Local> createLocal({
+    required String name,
+    required String description,
+    required Coordinates coordinates,
+  }) async {
+    final newLocalData = {
+      'name': name,
+      'description': description,
+      'coordinates': {
+        'latitude': coordinates.latitude,
+        'longitude': coordinates.longitude,
+      },
+    };
+
+    final docRef = await _localsCollection.add(newLocalData);
+
+    return Local(
+      id: docRef.id,
+      name: name,
+      description: description,
+      coordinates: coordinates,
+    );
+  }
 }

@@ -6,9 +6,11 @@ import 'package:hangout/repositories/meeting_repository.dart';
 import '../services/user_service.dart';
 import '../services/meeting_service.dart';
 import '../models/local.dart';
+import '../models/user.dart';
 import '../pickers/location_picker.dart';
 import '../pickers/date_time_picker.dart';
 import '../widgets/custom_picker_tile.dart';
+import 'create_local_page.dart';
 
 class CreateMeetingPage extends StatefulWidget {
   const CreateMeetingPage({super.key});
@@ -47,6 +49,17 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
       setState(() {
         _selectedLocal = result;
       });
+    }
+  }
+
+  Future<void> _createNewLocal() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CreateLocalPage()),
+    );
+
+    if (result == true) {
+      _pickLocation();
     }
   }
 
@@ -89,7 +102,10 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   Future<void> _submitForm() async {
     if (!_validateInputs()) return;
 
-    final currentUser = UserService(repository: context.read<UserRepository>()).currentUser;
+    // RESTAURADO: Uso do UserService
+    final userService = UserService(repository: context.read<UserRepository>());
+    final currentUser = userService.currentUser;
+
     if (currentUser == null) {
       _showErrorSnackBar('Erro: Nenhum usuário logado. Faça login novamente.');
       return;
@@ -98,7 +114,11 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     setState(() => _isLoading = true);
 
     try {
-      final meetingService = MeetingService(repository: context.read<MeetingRepository>());
+      // RESTAURADO: Uso do MeetingService
+      final meetingService = MeetingService(
+        repository: context.read<MeetingRepository>(),
+      );
+
       await meetingService.createMeeting(
         name: _nameController.text,
         description: _descriptionController.text,
@@ -160,12 +180,26 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
                     : null,
               ),
               const SizedBox(height: 24),
-              CustomPickerTile(
-                label: 'Selecionar Local',
-                valueText: _selectedLocal?.name ?? '',
-                icon: Icons.location_on_outlined,
-                onTap: _pickLocation,
+
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomPickerTile(
+                      label: 'Selecionar Local',
+                      valueText: _selectedLocal?.name ?? '',
+                      icon: Icons.location_on_outlined,
+                      onTap: _pickLocation,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    onPressed: _createNewLocal,
+                    icon: const Icon(Icons.add_location_alt),
+                    tooltip: "Novo Local (CEP)",
+                  ),
+                ],
               ),
+
               const SizedBox(height: 16),
               CustomPickerTile(
                 label: 'Selecionar Data e Hora',
@@ -178,13 +212,26 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
                 icon: Icons.calendar_today_outlined,
                 onTap: _pickDateTime,
               ),
+
               const SizedBox(height: 32),
+
               ElevatedButton.icon(
-                onPressed: _submitForm,
+                onPressed: _isLoading ? null : _submitForm,
                 icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Salvar Evento'),
+                label: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text('Salvar Evento'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
                   textStyle: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
