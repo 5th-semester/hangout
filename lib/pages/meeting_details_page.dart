@@ -231,14 +231,18 @@ class _MeetingDetailsPageState extends State<MeetingDetailsPage> {
           children: users
               .map(
                 (user) => ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).primaryColorLight,
-                    child: Text(
-                      user.name.isNotEmpty
-                          ? user.name.substring(0, 1).toUpperCase()
-                          : '?',
-                    ),
-                  ),
+                  leading: user.photoUrl.isNotEmpty
+                      ? CircleAvatar(
+                          backgroundImage: NetworkImage(user.photoUrl),
+                        )
+                      : CircleAvatar(
+                          backgroundColor: Theme.of(context).primaryColorLight,
+                          child: Text(
+                            user.name.isNotEmpty
+                                ? user.name.substring(0, 1).toUpperCase()
+                                : '?',
+                          ),
+                        ),
                   title: Text(
                     user.name.isNotEmpty ? user.name : 'Usuário sem nome',
                   ),

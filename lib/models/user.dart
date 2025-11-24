@@ -5,16 +5,26 @@ class User {
   final String name;
   final String email;
   final String cpf;
+  final String bio; // novo
+  final String photoUrl; // novo
 
   User({
     required this.uid,
     required this.name,
     required this.email,
     required this.cpf,
+    this.bio = '',
+    this.photoUrl = '',
   });
 
   Map<String, dynamic> toFirestore() {
-    return {'name': name, 'email': email, 'cpf': cpf};
+    return {
+      'name': name,
+      'email': email,
+      'cpf': cpf,
+      'bio': bio,
+      'photoUrl': photoUrl,
+    };
   }
 
   factory User.fromFirestore(DocumentSnapshot doc) {
@@ -24,6 +34,8 @@ class User {
       name: data['name'] ?? '',
       email: data['email'] ?? '',
       cpf: data['cpf'] ?? '',
+      bio: data['bio'] ?? '',
+      photoUrl: data['photoUrl'] ?? '',
     );
   }
 }
