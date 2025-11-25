@@ -2,19 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../repositories/user_repository.dart';
 import '../models/user.dart';
 
 class UserPage extends StatelessWidget {
   const UserPage({super.key});
 
-  Future<void> _showEditDialog(BuildContext context, String uid, String currentBio, String currentPhoto) async {
+  Future<void> _showEditDialog(
+    BuildContext context,
+    String uid,
+    String currentBio,
+    String currentPhotoUrl,
+    String currentPhotoBase64,
+  ) async {
     final bioController = TextEditingController(text: currentBio);
     XFile? pickedImage;
     File? imageFile;
-    String photoPreview = currentPhoto;
+    String photoPreviewUrl = currentPhotoUrl;
+    String photoPreviewBase64 = currentPhotoBase64;
 
     await showDialog(
       context: context,
@@ -24,8 +31,10 @@ class UserPage extends StatelessWidget {
           content: SingleChildScrollView(
             child: Column(
               children: [
-                // preview atual ou selecionada
-                if ((pickedImage != null) || photoPreview.isNotEmpty)
+                // preview: selecionada > base64 atual > url atual
+                if (pickedImage != null ||
+                    photoPreviewBase64.isNotEmpty ||
+                    photoPreviewUrl.isNotEmpty)
                   Container(
                     width: 120,
                     height: 120,
@@ -34,8 +43,11 @@ class UserPage extends StatelessWidget {
                       shape: BoxShape.circle,
                       image: DecorationImage(
                         image: pickedImage != null
-                            ? FileImage(File(pickedImage!.path))
-                            : NetworkImage(photoPreview) as ImageProvider,
+                            ? FileImage(File(pickedImage!.path)) // <-- changed: use ! to satisfy analyzer
+                            : (photoPreviewBase64.isNotEmpty
+                                ? MemoryImage(base64Decode(photoPreviewBase64))
+                                    as ImageProvider
+                                : NetworkImage(photoPreviewUrl) as ImageProvider),
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -50,18 +62,20 @@ class UserPage extends StatelessWidget {
                   icon: const Icon(Icons.photo_library),
                   label: const Text('Escolher da galeria'),
                   onPressed: () async {
-                    final p = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 75);
+                    final p = await ImagePicker()
+                        .pickImage(source: ImageSource.gallery, imageQuality: 75);
                     if (p != null) {
                       setState(() {
                         pickedImage = p;
                         imageFile = File(p.path);
+                        // quando escolher, preferimos mostrar o arquivo local
                       });
                     }
                   },
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Ao salvar, a foto será enviada e usada como imagem de perfil.',
+                  'Ao salvar, a foto será armazenada em nossos servidores!',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -73,15 +87,17 @@ class UserPage extends StatelessWidget {
               onPressed: () async {
                 final bio = bioController.text.trim();
                 try {
-                  String? uploadedUrl = currentPhoto;
+                  String uploadedBase64 = currentPhotoBase64;
+                  String clearUrl = currentPhotoUrl;
                   if (imageFile != null) {
-                    final ref = FirebaseStorage.instance.ref().child('user_photos/$uid.jpg');
-                    final uploadTask = await ref.putFile(imageFile!);
-                    uploadedUrl = await ref.getDownloadURL();
+                    final bytes = await imageFile!.readAsBytes();
+                    uploadedBase64 = base64Encode(bytes);
+                    clearUrl = '';
                   }
                   await FirebaseFirestore.instance.collection('users').doc(uid).update({
                     'bio': bio,
-                    'photoUrl': uploadedUrl ?? '',
+                    'photoBase64': uploadedBase64,
+                    'photoUrl': clearUrl,
                   });
                   if (context.mounted) {
                     Navigator.of(context).pop();
@@ -129,12 +145,13 @@ class UserPage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () async {
-              // abrir diálogo de edição com dados atuais (lidos do Firestore para garantir sincronização)
+              // ler dados atuais (url + base64) do Firestore
               final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
               final data = doc.data() ?? {};
               final currentBio = data['bio'] as String? ?? '';
-              final currentPhoto = data['photoUrl'] as String? ?? '';
-              await _showEditDialog(context, uid, currentBio, currentPhoto);
+              final currentPhotoUrl = data['photoUrl'] as String? ?? '';
+              final currentPhotoBase64 = data['photoBase64'] as String? ?? '';
+              await _showEditDialog(context, uid, currentBio, currentPhotoUrl, currentPhotoBase64);
             },
             tooltip: 'Editar Perfil',
           ),
@@ -166,7 +183,9 @@ class UserPage extends StatelessWidget {
                       image: DecorationImage(
                         image: user.photoUrl.isNotEmpty
                             ? NetworkImage(user.photoUrl) as ImageProvider
-                            : const AssetImage('lib/repositories/images/user.png'),
+                            : (user.photoBase64.isNotEmpty
+                                ? MemoryImage(base64Decode(user.photoBase64))
+                                : const AssetImage('lib/repositories/images/user.png')) as ImageProvider,
                         fit: BoxFit.fill,
                       ),
                     ),

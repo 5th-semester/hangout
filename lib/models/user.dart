@@ -7,6 +7,7 @@ class User {
   final String cpf;
   final String bio; // novo
   final String photoUrl; // novo
+  final String photoBase64; // novo
 
   User({
     required this.uid,
@@ -15,6 +16,7 @@ class User {
     required this.cpf,
     this.bio = '',
     this.photoUrl = '',
+    this.photoBase64 = '',
   });
 
   Map<String, dynamic> toFirestore() {
@@ -24,6 +26,7 @@ class User {
       'cpf': cpf,
       'bio': bio,
       'photoUrl': photoUrl,
+      'photoBase64': photoBase64, // novo
     };
   }
 
@@ -36,6 +39,7 @@ class User {
       cpf: data['cpf'] ?? '',
       bio: data['bio'] ?? '',
       photoUrl: data['photoUrl'] ?? '',
+      photoBase64: data['photoBase64'] ?? '', // novo
     );
   }
 }

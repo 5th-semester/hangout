@@ -11,6 +11,7 @@ import '../services/local_service.dart';
 import '../repositories/meeting_repository.dart';
 import '../repositories/user_repository.dart';
 import 'meeting_settings.dart';
+import 'dart:convert';
 
 class MeetingDetailsPage extends StatefulWidget {
   final Meeting meeting;
@@ -235,14 +236,18 @@ class _MeetingDetailsPageState extends State<MeetingDetailsPage> {
                       ? CircleAvatar(
                           backgroundImage: NetworkImage(user.photoUrl),
                         )
-                      : CircleAvatar(
-                          backgroundColor: Theme.of(context).primaryColorLight,
-                          child: Text(
-                            user.name.isNotEmpty
-                                ? user.name.substring(0, 1).toUpperCase()
-                                : '?',
-                          ),
-                        ),
+                      : (user.photoBase64.isNotEmpty
+                          ? CircleAvatar(
+                              backgroundImage: MemoryImage(base64Decode(user.photoBase64)),
+                            )
+                          : CircleAvatar(
+                              backgroundColor: Theme.of(context).primaryColorLight,
+                              child: Text(
+                                user.name.isNotEmpty
+                                    ? user.name.substring(0, 1).toUpperCase()
+                                    : '?',
+                              ),
+                            )),
                   title: Text(
                     user.name.isNotEmpty ? user.name : 'Usuário sem nome',
                   ),
