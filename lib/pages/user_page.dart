@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:io';
+import 'dart:typed_data';
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../repositories/user_repository.dart';
 import '../models/user.dart';
 
@@ -18,101 +18,123 @@ class UserPage extends StatelessWidget {
     String currentPhotoBase64,
   ) async {
     final bioController = TextEditingController(text: currentBio);
-    XFile? pickedImage;
-    File? imageFile;
+    // REMOVIDO: XFile? pickedImage; (não estava sendo usado)
+    Uint8List? imageBytes; // Pode ser nulo inicialmente
     String photoPreviewUrl = currentPhotoUrl;
     String photoPreviewBase64 = currentPhotoBase64;
 
     await showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Editar Perfil'),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                // preview: selecionada > base64 atual > url atual
-                if (pickedImage != null ||
-                    photoPreviewBase64.isNotEmpty ||
-                    photoPreviewUrl.isNotEmpty)
-                  Container(
-                    width: 120,
-                    height: 120,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      image: DecorationImage(
-                        image: pickedImage != null
-                            ? FileImage(File(pickedImage!.path)) // <-- changed: use ! to satisfy analyzer
-                            : (photoPreviewBase64.isNotEmpty
-                                ? MemoryImage(base64Decode(photoPreviewBase64))
-                                    as ImageProvider
-                                : NetworkImage(photoPreviewUrl) as ImageProvider),
-                        fit: BoxFit.cover,
+        builder: (context, setState) {
+          // Lógica para determinar qual imagem mostrar no Avatar dentro do Dialog
+          ImageProvider? imageProvider;
+          
+          if (imageBytes != null) {
+            // CORREÇÃO: Adicionado '!' pois já checamos se é nulo no if acima
+            imageProvider = MemoryImage(imageBytes!); 
+          } else if (photoPreviewBase64.isNotEmpty) {
+            imageProvider = MemoryImage(base64Decode(photoPreviewBase64));
+          } else if (photoPreviewUrl.isNotEmpty) {
+            imageProvider = NetworkImage(photoPreviewUrl);
+          }
+
+          return AlertDialog(
+            title: const Text('Editar Perfil'),
+            content: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Exibe o avatar apenas se houver alguma imagem disponível
+                  if (imageProvider != null)
+                    Container(
+                      width: 120,
+                      height: 120,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        image: DecorationImage(
+                          image: imageProvider,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
+                  TextField(
+                    controller: bioController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Biografia'),
                   ),
-                TextField(
-                  controller: bioController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Biografia'),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.photo_library),
-                  label: const Text('Escolher da galeria'),
-                  onPressed: () async {
-                    final p = await ImagePicker()
-                        .pickImage(source: ImageSource.gallery, imageQuality: 75);
-                    if (p != null) {
-                      setState(() {
-                        pickedImage = p;
-                        imageFile = File(p.path);
-                        // quando escolher, preferimos mostrar o arquivo local
-                      });
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.photo_library),
+                    label: const Text('Escolher da galeria'),
+                    onPressed: () async {
+                      final p = await ImagePicker().pickImage(
+                        source: ImageSource.gallery,
+                        imageQuality: 75,
+                      );
+                      
+                      if (p != null) {
+                        final bytes = await p.readAsBytes();
+                        setState(() {
+                          // pickedImage = p; // Removido
+                          imageBytes = bytes;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Ao salvar, a foto será codificada em base64 e salva no seu perfil.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final bio = bioController.text.trim();
+                  try {
+                    String uploadedBase64 = currentPhotoBase64;
+                    String clearUrl = currentPhotoUrl;
+                    
+                    if (imageBytes != null) {
+                      uploadedBase64 = base64Encode(imageBytes!); // Use ! aqui também
+                      clearUrl = ''; // Limpa a URL antiga se tiver nova foto local
                     }
-                  },
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Ao salvar, a foto será armazenada em nossos servidores!',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
-            ElevatedButton(
-              onPressed: () async {
-                final bio = bioController.text.trim();
-                try {
-                  String uploadedBase64 = currentPhotoBase64;
-                  String clearUrl = currentPhotoUrl;
-                  if (imageFile != null) {
-                    final bytes = await imageFile!.readAsBytes();
-                    uploadedBase64 = base64Encode(bytes);
-                    clearUrl = '';
+
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(uid)
+                        .update({
+                      'bio': bio,
+                      'photoBase64': uploadedBase64,
+                      'photoUrl': clearUrl,
+                    });
+                    
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Perfil atualizado')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Erro ao salvar: $e')),
+                      );
+                    }
                   }
-                  await FirebaseFirestore.instance.collection('users').doc(uid).update({
-                    'bio': bio,
-                    'photoBase64': uploadedBase64,
-                    'photoUrl': clearUrl,
-                  });
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perfil atualizado')));
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao salvar: $e')));
-                  }
-                }
-              },
-              child: const Text('Salvar'),
-            ),
-          ],
-        ),
+                },
+                child: const Text('Salvar'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -145,13 +167,24 @@ class UserPage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () async {
-              // ler dados atuais (url + base64) do Firestore
-              final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+              final doc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .get();
               final data = doc.data() ?? {};
               final currentBio = data['bio'] as String? ?? '';
               final currentPhotoUrl = data['photoUrl'] as String? ?? '';
               final currentPhotoBase64 = data['photoBase64'] as String? ?? '';
-              await _showEditDialog(context, uid, currentBio, currentPhotoUrl, currentPhotoBase64);
+              
+              if (context.mounted) {
+                await _showEditDialog(
+                  context,
+                  uid,
+                  currentBio,
+                  currentPhotoUrl,
+                  currentPhotoBase64,
+                );
+              }
             },
             tooltip: 'Editar Perfil',
           ),
@@ -170,6 +203,16 @@ class UserPage extends StatelessWidget {
           final doc = snapshot.data!;
           final user = User.fromFirestore(doc);
 
+          // Lógica de imagem do corpo principal
+          ImageProvider mainImageProvider;
+          if (user.photoUrl.isNotEmpty) {
+            mainImageProvider = NetworkImage(user.photoUrl);
+          } else if (user.photoBase64.isNotEmpty) {
+            mainImageProvider = MemoryImage(base64Decode(user.photoBase64));
+          } else {
+            mainImageProvider = const AssetImage('lib/repositories/images/user.png');
+          }
+
           return Center(
             child: Column(
               children: [
@@ -181,12 +224,8 @@ class UserPage extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       image: DecorationImage(
-                        image: user.photoUrl.isNotEmpty
-                            ? NetworkImage(user.photoUrl) as ImageProvider
-                            : (user.photoBase64.isNotEmpty
-                                ? MemoryImage(base64Decode(user.photoBase64))
-                                : const AssetImage('lib/repositories/images/user.png')) as ImageProvider,
-                        fit: BoxFit.fill,
+                        image: mainImageProvider,
+                        fit: BoxFit.cover, // Mudado de fill para cover para não distorcer
                       ),
                     ),
                   ),
@@ -215,12 +254,7 @@ class UserPage extends StatelessWidget {
                           child: Text("Bio", style: TextStyle(fontSize: 22)),
                         ),
                         Padding(
-                          padding: const EdgeInsets.only(
-                            top: 5,
-                            right: 10,
-                            bottom: 10,
-                            left: 10,
-                          ),
+                          padding: const EdgeInsets.all(10),
                           child: Text(
                             user.bio.isNotEmpty
                                 ? user.bio
