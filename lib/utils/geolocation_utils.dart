@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import '../models/coordinates.dart';
 
 double calculateDistanceInKm(Coordinates point1, Coordinates point2) {
@@ -21,3 +22,10 @@ double calculateDistanceInKm(Coordinates point1, Coordinates point2) {
 double _degreesToRadians(double degrees) {
   return degrees * pi / 180;
 }
+
+// Platform helpers
+bool isWebPlatform() => kIsWeb;
+
+/// Returns true when the app should show the "Use my GPS" option.
+/// On web the geolocation listener/last-known APIs are unreliable, so hide GPS option.
+bool shouldShowGpsOption() => !kIsWeb;

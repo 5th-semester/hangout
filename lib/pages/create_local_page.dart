@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import '../repositories/local_repository.dart';
 import '../services/cep_service.dart';
 import '../services/geocoding_service.dart';
 import '../models/coordinates.dart';
+import '../utils/geolocation_utils.dart';
 
 class CreateLocalPage extends StatefulWidget {
   const CreateLocalPage({super.key});
@@ -105,7 +108,77 @@ class _CreateLocalPageState extends State<CreateLocalPage> {
   Future<void> _useCurrentLocation() async {
     setState(() => _locationStatus = 'Buscando GPS...');
     try {
-      Position position = await Geolocator.getCurrentPosition();
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() => _locationStatus = 'Serviço de localização desabilitado');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Ative o GPS nas configurações.'),
+              action: SnackBarAction(
+                label: 'Abrir',
+                onPressed: () => Geolocator.openLocationSettings(),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied) {
+        setState(() => _locationStatus = 'Permissão de localização negada');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Permissão negada para acessar GPS.')),
+          );
+        }
+        return;
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() => _locationStatus = 'Permissão negada permanentemente');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Permissão negada permanentemente. Ative nas configurações.'),
+              action: SnackBarAction(
+                label: 'Abrir',
+                onPressed: () => Geolocator.openAppSettings(),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      Position position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.best,
+          timeLimit: const Duration(seconds: 10),
+        );
+      } on TimeoutException {
+        Position? last;
+        if (!kIsWeb) {
+          last = await Geolocator.getLastKnownPosition();
+        } else {
+          last = null;
+        }
+        if (last != null) {
+          position = last;
+          setState(() => _locationStatus = 'Usando última posição conhecida (timeout).');
+        } else {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tempo esgotado ao obter GPS.')));
+          setState(() => _locationStatus = 'Erro ao obter GPS (timeout)');
+          return;
+        }
+      }
+
       setState(() {
         _coordinatesToSave = Coordinates(
           latitude: position.latitude,
@@ -114,7 +187,28 @@ class _CreateLocalPageState extends State<CreateLocalPage> {
         _locationStatus = 'Usando sua localização GPS atual';
       });
     } catch (e) {
-      setState(() => _locationStatus = 'Erro ao obter GPS');
+      Position? last;
+      if (!kIsWeb) {
+        last = await Geolocator.getLastKnownPosition();
+      } else {
+        last = null;
+      }
+      if (last != null) {
+        final lastPos = last;
+        setState(() {
+          _coordinatesToSave = Coordinates(
+            latitude: lastPos.latitude,
+            longitude: lastPos.longitude,
+          );
+          _locationStatus = 'Usando última posição conhecida (erro ao obter atual).';
+        });
+      } else {
+        print("=============================================");
+        print("Erro ao obter localização GPS: $e");
+        print("=============================================");
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao obter localização GPS.')));
+        setState(() => _locationStatus = 'Erro ao obter GPS');
+      }
     }
   }
 
@@ -296,11 +390,14 @@ class _CreateLocalPageState extends State<CreateLocalPage> {
                 ),
               ),
               const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: _useCurrentLocation,
-                icon: const Icon(Icons.my_location),
-                label: const Text('Usar meu GPS Atual em vez do CEP'),
-              ),
+              if (shouldShowGpsOption())
+                OutlinedButton.icon(
+                  onPressed: _useCurrentLocation,
+                  icon: const Icon(Icons.my_location),
+                  label: const Text('Usar meu GPS Atual em vez do CEP'),
+                )
+              else
+
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _isLoading ? null : _saveLocal,

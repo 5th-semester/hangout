@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/coordinates.dart';
 
@@ -33,7 +34,7 @@ class GeocodingService {
         }
       }
     } catch (e) {
-      print('Erro ao buscar coordenadas: $e');
+      debugPrint('Erro ao buscar coordenadas: $e');
     }
     return null;
   }

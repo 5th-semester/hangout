@@ -42,4 +42,9 @@ class User {
       photoBase64: data['photoBase64'] ?? '', // novo
     );
   }
+
+  @override
+  String toString() {
+    return 'User(uid: $uid, name: $name, email: $email)';
+  }
 }
